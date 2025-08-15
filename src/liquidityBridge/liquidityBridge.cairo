@@ -53,7 +53,6 @@ pub mod LiquidityBridge {
         // System config
         fee_bps: u16, // basis points (0.01%)
         treasury: ContractAddress,
-        account_factory: ContractAddress, // For deploying new StarkNet accounts
         owner: ContractAddress,
     }
     #[event]
@@ -78,12 +77,10 @@ pub mod LiquidityBridge {
         ref self: ContractState,
         owner: ContractAddress,
         treasury: ContractAddress,
-        account_factory: ContractAddress,
         initial_fee_basis_points: u16,
     ) {
         self.ownable.initializer(owner);
         self.treasury.write(treasury);
-        self.account_factory.write(account_factory);
         self.fee_bps.write(initial_fee_basis_points);
         self.should_succeed.write(true);
         self.token_count.write(0_u8);

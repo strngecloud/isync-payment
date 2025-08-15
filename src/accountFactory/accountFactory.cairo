@@ -12,6 +12,7 @@ pub mod AccountFactory {
     use starknet::syscalls::deploy_syscall;
     use starknet::{ClassHash, ContractAddress};
     use crate::events::accountFactoryEvents::{AccountCreated, DefaultTokenAdded};
+    use crate::interfaces::iaccount::{IAccountDispatcher, IAccountDispatcherTrait};
     // use crate::interfaces::iaccount::{IAccountDispatcher, IAccountDispatcherTrait};
     use super::*;
 
@@ -34,6 +35,7 @@ pub mod AccountFactory {
         accounts: Map<felt252, ContractAddress>, // user address -> account address
         account_class_hash: ClassHash,
         liquidity_bridge: ContractAddress,
+        default_fiat_currency: felt252,
     }
 
     #[event]
@@ -73,11 +75,14 @@ pub mod AccountFactory {
             )
                 .expect('failed to deploy account');
 
-            // Initialize the account
-            // let mut account_dispatcher = IAccountDispatcher { contract_address: account };
-            // account_dispatcher.initialize(public_key, self.liquidity_bridge.read());
+            let token_address: ContractAddress = 0x06ab048153cdf6ee3ab9328fa0b8d16c09670581a5a446749facfd229362bf0e.try_into().unwrap(); // TODO: will add it to contract initialization
 
             self.accounts.write(user_unique_id, account);
+            self.default_fiat_currency.write('NAIRA'.try_into().unwrap());
+            // let mut accountDispatcher = IAccountDispatcher { contract_address: account };
+            // accountDispatcher.set_default_fiat_currency(self.default_fiat_currency.read());
+            // accountDispatcher.approve_token('SYNC'.into(), token_address);
+
             self.emit(AccountCreated { user: user_unique_id, address: account, public_key });
         }
 
@@ -113,4 +118,3 @@ pub mod AccountFactory {
         }
     }
 }
-
