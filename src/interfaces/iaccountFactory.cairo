@@ -7,6 +7,7 @@ pub trait IAccountFactory<T> {
     fn get_account(self: @T, user: felt252) -> ContractAddress;
     fn set_liquidity_bridge(ref self: T, new_bridge: ContractAddress);
     fn set_account_class_hash(ref self: T, new_account_class_hash: ClassHash);
+    fn get_account_class_hash(self: @T) -> ClassHash;
     fn get_liquidity_bridge(self: @T) -> ContractAddress;
 }
 

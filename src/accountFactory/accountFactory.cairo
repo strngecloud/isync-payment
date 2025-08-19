@@ -75,13 +75,16 @@ pub mod AccountFactory {
             )
                 .expect('failed to deploy account');
 
-            let token_address: ContractAddress = 0x06ab048153cdf6ee3ab9328fa0b8d16c09670581a5a446749facfd229362bf0e.try_into().unwrap(); // TODO: will add it to contract initialization
+            let token_address: ContractAddress =
+                0x06ab048153cdf6ee3ab9328fa0b8d16c09670581a5a446749facfd229362bf0e
+                .try_into()
+                .unwrap(); // TODO: will add it to contract initialization
 
             self.accounts.write(user_unique_id, account);
             self.default_fiat_currency.write('NAIRA'.try_into().unwrap());
-            // let mut accountDispatcher = IAccountDispatcher { contract_address: account };
-            // accountDispatcher.set_default_fiat_currency(self.default_fiat_currency.read());
-            // accountDispatcher.approve_token('SYNC'.into(), token_address);
+            let mut accountDispatcher = IAccountDispatcher { contract_address: account };
+            accountDispatcher.set_default_fiat_currency(self.default_fiat_currency.read());
+            accountDispatcher.approve_token('SYNC'.into(), token_address);
 
             self.emit(AccountCreated { user: user_unique_id, address: account, public_key });
         }
@@ -102,6 +105,10 @@ pub mod AccountFactory {
 
         fn get_liquidity_bridge(self: @ContractState) -> ContractAddress {
             self.liquidity_bridge.read()
+        }
+
+        fn get_account_class_hash(self: @ContractState) -> ClassHash {
+            self.account_class_hash.read()
         }
     }
 
