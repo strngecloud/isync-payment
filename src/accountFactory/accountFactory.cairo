@@ -110,6 +110,32 @@ pub mod AccountFactory {
         fn get_account_class_hash(self: @ContractState) -> ClassHash {
             self.account_class_hash.read()
         }
+
+        fn swap_fiat_to_token(
+            ref self: ContractState,
+            user_unique_id: felt252,
+            _fiat_symbol: felt252,
+            _token_symbol: felt252,
+            _fiat_amount: u256,
+        ) -> bool {
+            let user_account = self.accounts.read(user_unique_id);
+            assert(!user_account.is_zero(), 'Account does not exist');
+            let mut account_dispatcher = IAccountDispatcher { contract_address: user_account };
+            account_dispatcher.swap_fiat_to_token(user_account, _fiat_symbol, _token_symbol, _fiat_amount)
+        }
+
+        fn swap_token_to_fiat(
+            ref self: ContractState,
+            user_unique_id: felt252,
+            _fiat_symbol: felt252,
+            _token_symbol: felt252,
+            _token_amount: u256,
+        ) -> bool {
+            let user_account = self.accounts.read(user_unique_id);
+            assert(!user_account.is_zero(), 'Account does not exist');
+            let mut account_dispatcher = IAccountDispatcher { contract_address: user_account };
+            account_dispatcher.swap_token_to_fiat(_fiat_symbol, _token_symbol, _token_amount)
+        }
     }
 
 

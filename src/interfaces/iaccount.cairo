@@ -21,4 +21,14 @@ pub trait IAccount<T> {
     fn get_payment_history(self: @T, payment_id: u128) -> PaymentRecord;
     fn get_next_payment_id(self: @T) -> u128;
     fn get_token_address(self: @T, symbol: felt252) -> ContractAddress;
+    fn swap_fiat_to_token(
+        ref self: T,
+        _user: ContractAddress,
+        _fiat_symbol: felt252,
+        _token_symbol: felt252,
+        _fiat_amount: u256,
+    ) -> bool;
+    fn swap_token_to_fiat(
+        ref self: T, _fiat_symbol: felt252, _token_symbol: felt252, _token_amount: u256,
+    ) -> bool;
 }

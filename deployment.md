@@ -2,8 +2,8 @@
 sncast declare --contract-name Account --url https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/VFVA--IYkSjn28CaMokBNYvFo5fZOw2n --package isyncpayment
 
 ## command: declare
-class_hash: 0x022e5652c95ab64784909deae322d41f81d8fb89d8590ccb22add66bfe21fe8b
-transaction_hash: 0x04590521bdc004e2dd4991afcd2ae426f7cd39f3858359ae9f6fb44c01f7133f
+class_hash: 0x055d6258fdf145e784eb9b267e86d5a944c55ed3f24a5b872ecb4dd9ed7ba1bf
+transaction_hash: 0x01802f0379a4f92975c00f316479d0ddc64c92ab2031cf4cd1aa697799dbf4c9
 
 # Declare Account Factory
 sncast declare --contract-name AccountFactory --url https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/VFVA--IYkSjn28CaMokBNYvFo5fZOw2n --package isyncpayment

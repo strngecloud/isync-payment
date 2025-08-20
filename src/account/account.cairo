@@ -96,6 +96,7 @@ pub mod Account {
             balance
         }
 
+        // remove this function and use the erc20 directly
         fn get_token_balance(self: @ContractState, token_symbol: felt252) -> u256 {
             let token_address = self.token_address.read(token_symbol);
             assert(!token_address.is_zero(), AccountErrors::CANNOT_BE_ADDR_ZERO);
@@ -105,7 +106,6 @@ pub mod Account {
         }
 
         fn approve_token(ref self: ContractState, symbol: felt252, token_address: ContractAddress) {
-            self.account.assert_only_self();
             assert(!token_address.is_zero(), AccountErrors::CANNOT_BE_ADDR_ZERO);
             self.token_address.write(symbol, token_address);
             self
@@ -268,7 +268,6 @@ pub mod Account {
         }
 
         fn set_default_fiat_currency(ref self: ContractState, currency: felt252) {
-            self.account.assert_only_self();
             self.default_fiat_currency.write(currency);
         }
 
@@ -286,6 +285,32 @@ pub mod Account {
 
         fn get_token_address(self: @ContractState, symbol: felt252) -> ContractAddress {
             self.token_address.read(symbol)
+        }
+
+        fn swap_fiat_to_token(
+            ref self: ContractState,
+            _user: ContractAddress,
+            _fiat_symbol: felt252,
+            _token_symbol: felt252,
+            _fiat_amount: u256,
+        ) -> bool {
+            self.account.assert_only_self();
+            let bridge = self.liquidity_bridge.read();
+            assert(!bridge.is_zero(), 'Liquidity bridge not set');
+
+            let bridge_dispatcher = ILiquidityBridgeDispatcher { contract_address: bridge };
+            bridge_dispatcher.swap_fiat_to_token(get_contract_address(), _fiat_symbol, _token_symbol, _fiat_amount)
+        }
+
+        fn swap_token_to_fiat(
+            ref self: ContractState, _fiat_symbol: felt252, _token_symbol: felt252, _token_amount: u256,
+        ) -> bool {
+            self.account.assert_only_self();
+            let bridge = self.liquidity_bridge.read();
+            assert(!bridge.is_zero(), 'Liquidity bridge not set');
+
+            let bridge_dispatcher = ILiquidityBridgeDispatcher { contract_address: bridge };
+            bridge_dispatcher.swap_token_to_fiat(_fiat_symbol, _token_symbol, _token_amount)
         }
     }
 
