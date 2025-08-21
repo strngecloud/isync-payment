@@ -18,8 +18,8 @@ pub mod LiquidityBridge {
     use crate::interfaces::iliquidityBridge::ILiquidityBridge;
     use crate::events::liquidityBridgeEvents::{
         ExchangeRateUpdated, FiatDeposit, FiatLiquidityAdded, FiatLiquidityRemoved,
-        FiatToTokenSwapExecuted, TokenRegistered, TokenToFiatSwapExecuted, UserRegistered,
-        WithdrawalCompleted, TokenLiquidityAdded,
+        FiatToTokenSwapExecuted, TokenLiquidityAdded, TokenRegistered, TokenToFiatSwapExecuted,
+        UserRegistered, WithdrawalCompleted,
     };
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
@@ -208,16 +208,10 @@ pub mod LiquidityBridge {
                 );
         }
 
-        fn set_fee(ref self: ContractState, _new_fee_bps: u16) {
-            assert(get_caller_address() == self.owner.read(), LiquidityBridgeErrors::UNAUTHORIZED);
-            assert(_new_fee_bps <= 1000, LiquidityBridgeErrors::FEE_TOO_HIGH);
-            self.fee_bps.write(_new_fee_bps);
-        }
-
-        fn get_exchange_rate(
-            self: @ContractState, _fiat_symbol: felt252, _token_symbol: felt252,
-        ) -> u256 {
-            self.exchange_rates.read((_fiat_symbol, _token_symbol))
+        fn set_fee(ref self: ContractState, fee_bps: u16) {
+            self.ownable.assert_only_owner();
+            assert(fee_bps <= 1000, LiquidityBridgeErrors::FEE_TOO_HIGH); // Max 10% fee
+            self.fee_bps.write(fee_bps);
         }
 
         fn get_token_balance(self: @ContractState, _token_symbol: felt252) -> u256 {
@@ -232,6 +226,13 @@ pub mod LiquidityBridge {
 
         fn is_user_registered(self: @ContractState, _user: ContractAddress) -> bool {
             self.user_accounts.read(_user)
+        }
+
+        fn register_token(ref self: ContractState, symbol: felt252, token_address: ContractAddress) {
+            self.ownable.assert_only_owner();
+            assert(!token_address.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
+            self.token_addresses.write(symbol, token_address);
+            self.emit(TokenRegistered { token_symbol: symbol, token_address: token_address });
         }
 
         fn get_fiat_account_id(self: @ContractState, _user: ContractAddress) -> felt252 {
@@ -320,7 +321,7 @@ pub mod LiquidityBridge {
             _fiat_amount: u256,
         ) -> bool {
             if !self.should_succeed.read() {
-               return false;
+                return false;
             }
 
             assert(self.user_accounts.read(_user), LiquidityBridgeErrors::USER_NOT_REGISTERED);
@@ -378,7 +379,7 @@ pub mod LiquidityBridge {
             _token_amount: u256,
         ) -> bool {
             if !self.should_succeed.read() {
-               return false;
+                return false;
             }
             // 1. Verify inputs
             let user = get_caller_address();

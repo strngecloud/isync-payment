@@ -36,9 +36,10 @@ pub trait ILiquidityBridge<T> {
     fn swap_token_to_fiat(
         ref self: T, _fiat_symbol: felt252, _token_symbol: felt252, _token_amount: u256,
     ) -> bool;
-    fn set_fee(ref self: T, _new_fee_bps: u16);
+    fn set_fee(ref self: T, fee_bps: u16);
+    fn register_token(ref self: T, symbol: felt252, token_address: ContractAddress);
     fn get_fiat_account_id(self: @T, _user: ContractAddress) -> felt252;
-    fn get_exchange_rate(self: @T, _fiat_symbol: felt252, _token_symbol: felt252) -> u256;
+
     fn get_token_balance(self: @T, _token_symbol: felt252) -> u256;
     fn get_fiat_balance(self: @T, _fiat_symbol: felt252, _token_symbol: felt252) -> u256;
 }

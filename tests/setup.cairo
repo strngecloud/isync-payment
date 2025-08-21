@@ -1,9 +1,7 @@
-use isyncpayment::interfaces::iaccountFactory::IAccountFactoryDispatcher;
 use isyncpayment::interfaces::iaccount::IAccountDispatcher;
-use snforge_std::declare;
+use isyncpayment::interfaces::iaccountFactory::IAccountFactoryDispatcher;
 use isyncpayment::interfaces::ierc20::SyncTokenDispatcher;
-use snforge_std::{
-    ContractClassTrait, DeclareResultTrait};
+use snforge_std::{ContractClassTrait, DeclareResultTrait, declare};
 use starknet::{ClassHash, ContractAddress};
 
 pub fn owner() -> ContractAddress {
@@ -22,6 +20,12 @@ pub fn zero_address() -> ContractAddress {
     let zero_address_felt: felt252 = 0.into();
     let zero_address: ContractAddress = zero_address_felt.try_into().unwrap();
     zero_address
+}
+
+pub fn deploy_pragma_mock() -> ContractAddress {
+    let contract = declare("PragmaMock").unwrap().contract_class();
+    let (contract_address, _) = contract.deploy(@array![]).unwrap();
+    contract_address
 }
 
 // end of helpers
@@ -50,14 +54,15 @@ pub fn deploy_account() -> (ContractAddress, IAccountDispatcher, ClassHash) {
     (contract_address, account_dispatcher, *contract_class_hash.class_hash)
 }
 
-pub fn deploy_bridge(account_factory_address: ContractAddress) -> ContractAddress {
+pub fn deploy_bridge() -> ContractAddress {
     let contract = declare("LiquidityBridge").unwrap().contract_class();
+    let pragma_address = deploy_pragma_mock();
     let (contract_address, _) = contract
         .deploy(
             @array![
                 owner().into(),
-                random_user().into(),
-                account_factory_address.into(),
+                pragma_address.into(),
+                random_user().into(), // treasury
                 100_u16.into() // initial fee basis points
             ],
         )
@@ -67,7 +72,7 @@ pub fn deploy_bridge(account_factory_address: ContractAddress) -> ContractAddres
 
 pub fn deploy_account_factory() -> (ContractAddress, ClassHash, IAccountFactoryDispatcher) {
     let (_, _, account_class) = deploy_account();
-    let liquidity_bridge_address = deploy_bridge(owner().into());
+    let liquidity_bridge_address = deploy_bridge();
     let contract = declare("AccountFactory").expect('Failed to declare AF').contract_class();
     let (contract_address, _) = contract
         .deploy(@array![account_class.into(), liquidity_bridge_address.into(), owner().into()])
