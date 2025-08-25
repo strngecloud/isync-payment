@@ -21,6 +21,7 @@ pub mod LiquidityBridge {
         FiatToTokenSwapExecuted, TokenLiquidityAdded, TokenRegistered, TokenToFiatSwapExecuted,
         UserRegistered, WithdrawalCompleted,
     };
+    use crate::interfaces::ipragma::{IPragmaDispatcher, IPragmaDispatcherTrait};
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
@@ -54,6 +55,7 @@ pub mod LiquidityBridge {
         fee_bps: u16, // basis points (0.01%)
         treasury: ContractAddress,
         owner: ContractAddress,
+        pragma: ContractAddress,
     }
     #[event]
     #[derive(Drop, starknet::Event)]
@@ -78,12 +80,14 @@ pub mod LiquidityBridge {
         owner: ContractAddress,
         treasury: ContractAddress,
         initial_fee_basis_points: u16,
+        pragma: ContractAddress,
     ) {
         self.ownable.initializer(owner);
         self.treasury.write(treasury);
         self.fee_bps.write(initial_fee_basis_points);
         self.should_succeed.write(true);
         self.token_count.write(0_u8);
+        self.pragma.write(pragma);
     }
 
     #[abi(embed_v0)]
@@ -99,9 +103,9 @@ pub mod LiquidityBridge {
         }
 
         fn add_fiat_liquidity(ref self: ContractState, _fiat_symbol: felt252, _fiat_amount: u256) {
-            assert(_fiat_symbol.is_zero(), LiquidityBridgeErrors::INVALID_FIAT_SYMBOL);
+            assert(!_fiat_symbol.is_zero(), LiquidityBridgeErrors::INVALID_FIAT_SYMBOL);
             // TODO: check if fiat_symbol is supported
-            assert(_fiat_amount > 0, LiquidityBridgeErrors::INVALID_AMOUNT);
+            assert(_fiat_amount != 0, LiquidityBridgeErrors::INVALID_AMOUNT);
 
             // Update provider liquidity
             let provider = get_caller_address();
@@ -125,9 +129,9 @@ pub mod LiquidityBridge {
         fn add_token_liquidity(
             ref self: ContractState, _token_symbol: felt252, _token_amount: u256,
         ) {
-            assert(_token_symbol.is_zero(), LiquidityBridgeErrors::INVALID_FIAT_SYMBOL);
+            assert(!_token_symbol.is_zero(), LiquidityBridgeErrors::INVALID_FIAT_SYMBOL);
             // TODO: check if cypto_symbol is supported
-            assert(_token_amount > 0, LiquidityBridgeErrors::INVALID_AMOUNT);
+            assert(_token_amount != 0, LiquidityBridgeErrors::INVALID_AMOUNT);
 
             let provider = get_caller_address();
             let token = self.token_addresses.read(_token_symbol);
@@ -331,11 +335,14 @@ pub mod LiquidityBridge {
 
             // 2. Get current rate (fiat per 1 token)
             // TODO: i will like to use pragma to get the rate
-            let rate = self.exchange_rates.read((_fiat_symbol, _token_symbol));
+            // let rate = self.exchange_rates.read((_fiat_symbol, _token_symbol));
+
+            let rate = IPragmaDispatcher { contract_address: self.pragma.read() }.get_asset_price(_token_symbol);
+                
             assert(rate > 0, LiquidityBridgeErrors::INVALID_EXCHANGE_RATE);
 
             // 3. Calculate token amount and fee (1e18 precision)
-            let token_amount = (_fiat_amount * 10_u256.pow(18)) / rate;
+            let token_amount = (_fiat_amount * 10_u256.pow(18)) / rate.into();
             let fee = (token_amount * self.fee_bps.read().into()) / 10000_u256;
             let token_amount_after_fee = token_amount - fee;
 

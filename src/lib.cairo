@@ -17,6 +17,10 @@ pub mod erc20 {
     pub mod erc20;
 }
 
+pub mod pragma {
+    pub mod pragma;
+}
+
 pub mod events {
     pub mod accountEvents;
     pub mod accountFactoryEvents;
@@ -28,4 +32,5 @@ pub mod interfaces {
     pub mod iaccountFactory;
     pub mod iliquidityBridge;
     pub mod ierc20;
+    pub mod ipragma;
 }

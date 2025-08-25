@@ -72,8 +72,10 @@ pub mod SyncToken {
         pauser: ContractAddress,
         minter: ContractAddress,
         upgrader: ContractAddress,
+        name: ByteArray,
+        symbol: ByteArray,
     ) {
-        self.erc20.initializer("isyncpayment", "SYNC");
+        self.erc20.initializer(name, symbol);
         self.accesscontrol.initializer();
 
         self.accesscontrol._grant_role(DEFAULT_ADMIN_ROLE, default_admin);
