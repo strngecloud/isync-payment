@@ -23,15 +23,15 @@ transaction_hash: 0x03af37f91ac05bb57b4b838add955191acfa0aec7d72a38ac5799d5bdd81
 sncast declare --contract-name LiquidityBridge --url https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/VFVA--IYkSjn28CaMokBNYvFo5fZOw2n --package isyncpayment
 
 ## command: declare
-class_hash: 0x013d4aa8cfbeea7616a93e2da6c196137f34056b2c076a674ce603f1f1c53b9b
-transaction_hash: 0x06dff93d8f9eb05616f7ef70ac0bf97310029962cf2f2620ffef517006a659a9
+class_hash: 0x03dc9e839dabfd833368e64a607a0685c4c86b5eeffc3a8b3c5bbf97c7a9b1a3
+transaction_hash: 0x038008e38b0b23a88a5a37fd7607922e91d85186ce7c58cb57d5a92f5156bbc1
 
 # Deploy Liquidity Bridge
-sncast deploy --class-hash 0x018b7ac0774b31e04fbc50ce952869db5d3f286f458e6791f290dc82427df916 --url https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/VFVA--IYkSjn28CaMokBNYvFo5fZOw2n --constructor-calldata 0x4c73687f23639fdfd8d7d71ea7fccd62866351b0eff5efea14148c7b6ee5b27 0x4c73687f23639fdfd8d7d71ea7fccd62866351b0eff5efea14148c7b6ee5b27 1000
+sncast deploy --class-hash 0x03dc9e839dabfd833368e64a607a0685c4c86b5eeffc3a8b3c5bbf97c7a9b1a3 --url https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/VFVA--IYkSjn28CaMokBNYvFo5fZOw2n --constructor-calldata 0x4c73687f23639fdfd8d7d71ea7fccd62866351b0eff5efea14148c7b6ee5b27 0x4c73687f23639fdfd8d7d71ea7fccd62866351b0eff5efea14148c7b6ee5b27 1000 0x2a85bd616f912537c50a49a4076db02c00b29b2cdc8a197ce92ed1837fa875b
 
 ## command: deploy
-contract_address: 0x05f4fcb2921ba790a2d3cffa6c040a9446ab17e4549258e329b8c40bae8945b9
-transaction_hash: 0x01c4d3d272d5ed33338d1d2e388e04e0361061fab892442765ce5c9da245b4e7
+contract_address: 0x03ff7b4d0728ba6aa6487a6bf4f244c3cb25c31ae5712bc4232ab083706b90bd
+transaction_hash: 0x01302a93aaf0fde49efdba15528c991ccdbb2201e3c8366bce02d8f73e8f85fc
 
 # Declare Sync Token
 sncast declare --contract-name SyncToken --url https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/VFVA--IYkSjn28CaMokBNYvFo5fZOw2n --package isyncpayment

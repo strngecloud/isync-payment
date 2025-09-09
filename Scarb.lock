@@ -137,11 +137,8 @@ checksum = "sha256:bf799c794139837f397975ffdf6a7ed5032d198bbf70e87a8f44f144a9dfc
 
 [[package]]
 name = "pragma_lib"
-version = "2.11.4"
-source = "git+https://github.com/astraly-labs/pragma-lib#edb55442d36565cbd99c226e38c4f8040efb774b"
-dependencies = [
- "openzeppelin",
-]
+version = "1.0.0"
+source = "git+https://github.com/astraly-labs/pragma-lib?tag=2.8.2#86d7ccdc15b349b8b48d9796fc8464c947bea6e1"
 
 [[package]]
 name = "snforge_scarb_plugin"

@@ -478,7 +478,6 @@ pub mod LiquidityBridge {
             };
 
             assert(!feed_id.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
-            println!("Feed ID: {}", feed_id);
             let (price, decimals) = self.get_asset_price_median(DataType::SpotEntry(feed_id));
             price.into() * token_amount / fast_power(10_u32, decimals).into()
         }
