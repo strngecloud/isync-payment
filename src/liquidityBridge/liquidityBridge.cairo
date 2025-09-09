@@ -5,6 +5,7 @@ trait ISyncPayment<T> {
 
 #[starknet::contract]
 pub mod LiquidityBridge {
+    use alexandria_math::fast_power::fast_power;
     use core::num::traits::{Pow, Zero};
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
@@ -456,31 +457,34 @@ pub mod LiquidityBridge {
         ) -> u256 {
             let token_symbol = self.supported_tokens.read(token);
 
-            // For testing: use mock prices (comment out for production)
-            if token_symbol == 'ETH' {
-                return 3000_u256 * 10_u256.pow(18); // $3000 per ETH
-            } else if token_symbol == 'STRK' {
-                return 2_u256 * 10_u256.pow(18); // $2 per STRK
-            } else {
-                return 10_u256.pow(18); // $1 default
-            }
-            // // Production oracle code (currently commented out):
-        // let feed_id = if token_symbol == 'ETH' {
-        //     19514442401534788 // ETH/USD Pragma feed ID
-        // } else if token_symbol == 'BTC' {
-        //     18669995996566340 // BTC/USD Pragma feed ID
-        // } else if token_symbol == 'STRK' {
-        //     6004514686061859652
-        // };
+            // // For testing: use mock prices (comment out for production)
+            // if token_symbol == 'ETH' {
+            //     return 3000_u256 * 10_u256.pow(18); // $3000 per ETH
+            // } else if token_symbol == 'STRK' {
+            //     return 2_u256 * 10_u256.pow(18); // $2 per STRK
+            // } else {
+            //     return 10_u256.pow(18); // $1 default
+            // }
 
-            // assert(!feed_id.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
-        // println!("Feed ID: {}", feed_id);
-        // let (price, decimals) = self.get_asset_price_median(DataType::SpotEntry(feed_id));
-        // price.into() * token_amount / fast_power(10_u32, decimals).into()
+            // Production oracle code (currently commented out):
+            let feed_id: felt252 = if token_symbol == 'ETH' {
+                19514442401534788 // ETH/USD Pragma feed ID
+            } else if token_symbol == 'BTC' {
+                18669995996566340 // BTC/USD Pragma feed ID
+            } else if token_symbol == 'STRK' {
+                6004514686061859652
+            } else {
+                0
+            };
+
+            assert(!feed_id.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
+            println!("Feed ID: {}", feed_id);
+            let (price, decimals) = self.get_asset_price_median(DataType::SpotEntry(feed_id));
+            price.into() * token_amount / fast_power(10_u32, decimals).into()
         }
 
         fn fee_bps(self: @ContractState) -> u16 {
             self.fee_bps.read()
-        }  
+        }
     }
 }
