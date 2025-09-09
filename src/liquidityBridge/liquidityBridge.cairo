@@ -8,6 +8,8 @@ pub mod LiquidityBridge {
     use core::num::traits::{Pow, Zero};
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use pragma_lib::abi::{IPragmaABIDispatcher, IPragmaABIDispatcherTrait};
+    use pragma_lib::types::{AggregationMode, DataType, PragmaPricesResponse};
     use starknet::storage::{
         Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess,
         StoragePointerWriteAccess,
@@ -15,13 +17,12 @@ pub mod LiquidityBridge {
     use starknet::{ContractAddress, get_caller_address, get_contract_address};
     use crate::Errors::*;
     use crate::errors::LiquidityBridgeErrors;
-    use crate::interfaces::iliquidityBridge::ILiquidityBridge;
     use crate::events::liquidityBridgeEvents::{
         ExchangeRateUpdated, FiatDeposit, FiatLiquidityAdded, FiatLiquidityRemoved,
         FiatToTokenSwapExecuted, TokenLiquidityAdded, TokenRegistered, TokenToFiatSwapExecuted,
         UserRegistered, WithdrawalCompleted,
     };
-    use crate::interfaces::ipragma::{IPragmaDispatcher, IPragmaDispatcherTrait};
+    use crate::interfaces::iliquidityBridge::ILiquidityBridge;
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
@@ -34,18 +35,14 @@ pub mod LiquidityBridge {
         #[substorage(v0)]
         ownable: OwnableComponent::Storage,
         should_succeed: bool,
-        token_addresses: Map<felt252, ContractAddress>, // (token_symbol => token_address)
-        supported_tokens: Map<u8, felt252>, // index -> symbol
+        supported_tokens: Map<ContractAddress, felt252>, // (token_address => token_symbol)
+        supported_tokens_by_symbol: Map<
+            felt252, ContractAddress,
+        >, // (token_symbol => token_address)
         // Liquidity pools (fiat-token pairs)
         fiat_pools: Map<felt252, u256>, // fiat_symbol => fiat_amount
         token_pools: Map<felt252, u256>, // token_symbol => token_amount
-        exchange_rates: Map<
-            (felt252, felt252), u256,
-        >, // (fiat_symbol, token_symbol) => exchange_rate
         fiat_providers: Map<(ContractAddress, felt252), u256>, // (provider, fiat_symbol) => amount
-        token_providers: Map<
-            (ContractAddress, felt252), u256,
-        >, // (provider, token_symbol) => amount
         token_count: u8, // Number of supported tokens
         // User accounts
         user_accounts: Map<ContractAddress, bool>, // user address -> is registered
@@ -55,8 +52,9 @@ pub mod LiquidityBridge {
         fee_bps: u16, // basis points (0.01%)
         treasury: ContractAddress,
         owner: ContractAddress,
-        pragma: ContractAddress,
+        pragma_oracle_address: ContractAddress,
     }
+
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
@@ -80,14 +78,14 @@ pub mod LiquidityBridge {
         owner: ContractAddress,
         treasury: ContractAddress,
         initial_fee_basis_points: u16,
-        pragma: ContractAddress,
+        pragma_oracle_address: ContractAddress,
     ) {
         self.ownable.initializer(owner);
         self.treasury.write(treasury);
         self.fee_bps.write(initial_fee_basis_points);
         self.should_succeed.write(true);
         self.token_count.write(0_u8);
-        self.pragma.write(pragma);
+        self.pragma_oracle_address.write(pragma_oracle_address);
     }
 
     #[abi(embed_v0)]
@@ -134,22 +132,21 @@ pub mod LiquidityBridge {
             assert(_token_amount != 0, LiquidityBridgeErrors::INVALID_AMOUNT);
 
             let provider = get_caller_address();
-            let token = self.token_addresses.read(_token_symbol);
+            let token = self.supported_tokens_by_symbol.read(_token_symbol);
 
-            // Transfer tokens from provider to this contract
             assert(!token.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
+
+            // I will add erc20 approve here
+            IERC20Dispatcher { contract_address: token }
+                .approve(get_contract_address(), _token_amount);
+
             IERC20Dispatcher { contract_address: token }
                 .transfer_from(provider, get_contract_address(), _token_amount);
 
             // Update provider liquidity
-            let current_token_liquidity = self.token_providers.read((provider, _token_symbol));
-            let new_token_liquidity = current_token_liquidity + _token_amount;
-            self.token_providers.write((provider, _token_symbol), new_token_liquidity);
-
-            // Update pool liquidity
-            let old_token_liquidity = self.token_pools.read((_token_symbol));
-            let new_token_liquidity = old_token_liquidity + _token_amount;
-            self.token_pools.write((_token_symbol), new_token_liquidity);
+            let current_token_amount = self.token_pools.read(_token_symbol);
+            let new_token_liquidity = current_token_amount + _token_amount;
+            self.token_pools.write(_token_symbol, new_token_liquidity);
 
             self
                 .emit(
@@ -185,32 +182,33 @@ pub mod LiquidityBridge {
         fn add_supported_token(
             ref self: ContractState, _symbol: felt252, _token_address: ContractAddress,
         ) {
-            // Only owner can add tokens
-            assert(get_caller_address() == self.owner.read(), LiquidityBridgeErrors::UNAUTHORIZED);
+            self.ownable.assert_only_owner();
             assert(!_token_address.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
 
             let current_token_count = self.token_count.read();
-            self.supported_tokens.write(current_token_count + 1_u8, _symbol);
-            self.token_addresses.write(_symbol, _token_address);
+            self.supported_tokens.write(_token_address, _symbol);
+            self.supported_tokens_by_symbol.write(_symbol, _token_address);
             self.token_count.write(current_token_count + 1);
         }
 
-        fn update_exchange_rate(
-            ref self: ContractState, _fiat_symbol: felt252, _token_symbol: felt252, _new_rate: u256,
-        ) {
-            // Only owner or payment gateway can update rates
-            let caller = get_caller_address();
-            assert(caller == self.owner.read(), LiquidityBridgeErrors::UNAUTHORIZED);
+        // fn update_exchange_rate(
+        //     ref self: ContractState, _fiat_symbol: felt252, _token_symbol: felt252, _new_rate:
+        //     u256,
+        // ) {
+        //     // Only owner or payment gateway can update rates
+        //     let caller = get_caller_address();
+        //     assert(caller == self.owner.read(), LiquidityBridgeErrors::UNAUTHORIZED);
 
-            self.exchange_rates.write((_fiat_symbol, _token_symbol), _new_rate);
+        //     self.exchange_rates.write((_fiat_symbol, _token_symbol), _new_rate);
 
-            self
-                .emit(
-                    ExchangeRateUpdated {
-                        fiat_symbol: _fiat_symbol, token_symbol: _token_symbol, new_rate: _new_rate,
-                    },
-                );
-        }
+        //     self
+        //         .emit(
+        //             ExchangeRateUpdated {
+        //                 fiat_symbol: _fiat_symbol, token_symbol: _token_symbol, new_rate:
+        //                 _new_rate,
+        //             },
+        //         );
+        // }
 
         fn set_fee(ref self: ContractState, fee_bps: u16) {
             self.ownable.assert_only_owner();
@@ -222,21 +220,12 @@ pub mod LiquidityBridge {
             self.token_pools.read(_token_symbol)
         }
 
-        fn get_fiat_balance(
-            self: @ContractState, _fiat_symbol: felt252, _token_symbol: felt252,
-        ) -> u256 {
+        fn get_fiat_balance(self: @ContractState, _fiat_symbol: felt252) -> u256 {
             self.fiat_pools.read((_fiat_symbol))
         }
 
         fn is_user_registered(self: @ContractState, _user: ContractAddress) -> bool {
             self.user_accounts.read(_user)
-        }
-
-        fn register_token(ref self: ContractState, symbol: felt252, token_address: ContractAddress) {
-            self.ownable.assert_only_owner();
-            assert(!token_address.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
-            self.token_addresses.write(symbol, token_address);
-            self.emit(TokenRegistered { token_symbol: symbol, token_address: token_address });
         }
 
         fn get_fiat_account_id(self: @ContractState, _user: ContractAddress) -> felt252 {
@@ -247,7 +236,7 @@ pub mod LiquidityBridge {
             ref self: ContractState, _user: ContractAddress, _token_symbol: felt252, _amount: u256,
         ) {
             // Verify user has sufficient balance
-            let token = self.token_addresses.read(_token_symbol);
+            let token = self.supported_tokens_by_symbol.read(_token_symbol);
             let balance = IERC20Dispatcher { contract_address: token }.balance_of(_user);
             assert(balance >= _amount, LiquidityBridgeErrors::INSUFFICIENT_BALANCE);
 
@@ -292,8 +281,8 @@ pub mod LiquidityBridge {
         fn remove_fiat_liquidity(
             ref self: ContractState, _fiat_symbol: felt252, _fiat_amount: u256,
         ) {
-            assert(get_caller_address() == self.owner.read(), LiquidityBridgeErrors::UNAUTHORIZED);
-            assert(_fiat_symbol.is_zero(), LiquidityBridgeErrors::INVALID_FIAT_SYMBOL);
+            self.ownable.assert_only_owner();
+            assert(!_fiat_symbol.is_zero(), LiquidityBridgeErrors::INVALID_FIAT_SYMBOL);
             assert(_fiat_amount > 0, LiquidityBridgeErrors::INVALID_AMOUNT);
 
             // Update provider liquidity
@@ -329,20 +318,16 @@ pub mod LiquidityBridge {
             }
 
             assert(self.user_accounts.read(_user), LiquidityBridgeErrors::USER_NOT_REGISTERED);
-            let token = self.token_addresses.read(_token_symbol);
+            let token = self.supported_tokens_by_symbol.read(_token_symbol);
             assert(!token.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
             assert(_fiat_amount > 0, LiquidityBridgeErrors::INVALID_AMOUNT);
 
-            // 2. Get current rate (fiat per 1 token)
-            // TODO: i will like to use pragma to get the rate
-            // let rate = self.exchange_rates.read((_fiat_symbol, _token_symbol));
-
-            let rate = IPragmaDispatcher { contract_address: self.pragma.read() }.get_asset_price(_token_symbol);
-                
-            assert(rate > 0, LiquidityBridgeErrors::INVALID_EXCHANGE_RATE);
+            // let rate = self.get_token_amount_in_usd(token, _fiat_amount);
+            let price_per_token = self.get_token_amount_in_usd(token, 10_u256.pow(18));
+            assert(price_per_token > 0, LiquidityBridgeErrors::INVALID_EXCHANGE_RATE);
 
             // 3. Calculate token amount and fee (1e18 precision)
-            let token_amount = (_fiat_amount * 10_u256.pow(18)) / rate.into();
+            let token_amount = (_fiat_amount * 10_u256.pow(18)) / price_per_token;
             let fee = (token_amount * self.fee_bps.read().into()) / 10000_u256;
             let token_amount_after_fee = token_amount - fee;
 
@@ -356,8 +341,8 @@ pub mod LiquidityBridge {
             // 5. Update pools
             self
                 .fiat_pools
-                .write((_fiat_symbol), self.fiat_pools.read((_fiat_symbol)) - _fiat_amount);
-            self.token_pools.write(_token_symbol, available_token + token_amount_after_fee);
+                .write((_fiat_symbol), self.fiat_pools.read((_fiat_symbol)) + _fiat_amount);
+            self.token_pools.write(_token_symbol, available_token - token_amount_after_fee);
 
             // 6. Transfer tokens to user
             IERC20Dispatcher { contract_address: token }.transfer(_user, token_amount_after_fee);
@@ -379,6 +364,7 @@ pub mod LiquidityBridge {
 
             true
         }
+
         fn swap_token_to_fiat(
             ref self: ContractState,
             _fiat_symbol: felt252,
@@ -388,42 +374,57 @@ pub mod LiquidityBridge {
             if !self.should_succeed.read() {
                 return false;
             }
+
             // 1. Verify inputs
             let user = get_caller_address();
             assert(self.user_accounts.read(user), LiquidityBridgeErrors::USER_NOT_REGISTERED);
-            let token = self.token_addresses.read(_token_symbol);
+            let token = self.supported_tokens_by_symbol.read(_token_symbol);
             assert(!token.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
             assert(_token_amount > 0, LiquidityBridgeErrors::INVALID_AMOUNT);
 
-            // 2. Get current rate (fiat per 1 token)
-            // TODO: i will like to use pragma to get the rate
-            let rate = self.exchange_rates.read((_fiat_symbol, _token_symbol));
-            assert(rate > 0, LiquidityBridgeErrors::CANNOT_BE_ZERO);
+            // 2. Get current rate of token
+            let price_per_token = self.get_token_amount_in_usd(token, 10_u256.pow(18));
+            assert(price_per_token > 0, LiquidityBridgeErrors::CANNOT_BE_ZERO);
 
             // 3. Calculate fiat amount and fee
             let fee = (_token_amount * self.fee_bps.read().into()) / 10000_u256;
             let token_amount_after_fee = _token_amount - fee;
-            let fiat_amount = (token_amount_after_fee * rate) / 10_u256.pow(18);
+            let fiat_amount = (token_amount_after_fee * price_per_token) / 10_u256.pow(18);
 
-            // 4. Verify pool liquidity
+            // 4. Verify fiat liquidity
             let available_fiat = self.fiat_pools.read((_fiat_symbol));
             assert(
                 available_fiat >= fiat_amount, LiquidityBridgeErrors::INSUFFICIENT_FIAT_LIQUIDITY,
             );
 
-            // 5. Transfer token from user to contract
+            // 5. Verify token liquidity
+            let available_token = self.token_pools.read(_token_symbol);
+            assert(
+                available_token >= token_amount_after_fee,
+                LiquidityBridgeErrors::INSUFFICIENT_TOKEN_LIQUIDITY,
+            );
+
+            // 6. Transfer token from user to contract
             IERC20Dispatcher { contract_address: token }
                 .transfer_from(user, get_contract_address(), _token_amount);
 
-            // 6. Update pools
-            self.fiat_pools.write((_fiat_symbol), available_fiat + fiat_amount);
+            // 7. Update pools
+            // self.fiat_pools.write((_fiat_symbol), available_fiat + fiat_amount);
+            // self
+            //     .token_pools
+            //     .write(
+            //         _token_symbol, self.token_pools.read(_token_symbol) - token_amount_after_fee,
+            //     );
+
+            self.fiat_pools.write((_fiat_symbol), available_fiat - fiat_amount); // DECREASE fiat
             self
                 .token_pools
                 .write(
-                    _token_symbol, self.token_pools.read(_token_symbol) - token_amount_after_fee,
+                    _token_symbol,
+                    self.token_pools.read(_token_symbol) + token_amount_after_fee // INCREASE tokens
                 );
 
-            // 7. Send fee to treasury
+            // 8. Send fee to treasury
             IERC20Dispatcher { contract_address: token }.transfer(self.treasury.read(), fee);
 
             self
@@ -440,5 +441,46 @@ pub mod LiquidityBridge {
 
             true
         }
+
+        fn get_asset_price_median(self: @ContractState, asset: DataType) -> (u128, u32) {
+            let oracle_dispatcher = IPragmaABIDispatcher {
+                contract_address: self.pragma_oracle_address.read(),
+            };
+            let output: PragmaPricesResponse = oracle_dispatcher
+                .get_data(asset, AggregationMode::Median(()));
+            return (output.price, output.decimals);
+        }
+
+        fn get_token_amount_in_usd(
+            self: @ContractState, token: ContractAddress, token_amount: u256,
+        ) -> u256 {
+            let token_symbol = self.supported_tokens.read(token);
+
+            // For testing: use mock prices (comment out for production)
+            if token_symbol == 'ETH' {
+                return 3000_u256 * 10_u256.pow(18); // $3000 per ETH
+            } else if token_symbol == 'STRK' {
+                return 2_u256 * 10_u256.pow(18); // $2 per STRK
+            } else {
+                return 10_u256.pow(18); // $1 default
+            }
+            // // Production oracle code (currently commented out):
+        // let feed_id = if token_symbol == 'ETH' {
+        //     19514442401534788 // ETH/USD Pragma feed ID
+        // } else if token_symbol == 'BTC' {
+        //     18669995996566340 // BTC/USD Pragma feed ID
+        // } else if token_symbol == 'STRK' {
+        //     6004514686061859652
+        // };
+
+            // assert(!feed_id.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
+        // println!("Feed ID: {}", feed_id);
+        // let (price, decimals) = self.get_asset_price_median(DataType::SpotEntry(feed_id));
+        // price.into() * token_amount / fast_power(10_u32, decimals).into()
+        }
+
+        fn fee_bps(self: @ContractState) -> u16 {
+            self.fee_bps.read()
+        }  
     }
 }

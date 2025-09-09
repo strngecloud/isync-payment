@@ -17,6 +17,12 @@ pub fn random_user() -> ContractAddress {
     random_user
 }
 
+pub fn random_user2() -> ContractAddress {
+    let random_user2_felt: felt252 = 523433.into();
+    let random_user2: ContractAddress = random_user2_felt.try_into().unwrap();
+    random_user2
+}
+
 pub fn zero_address() -> ContractAddress {
     let zero_address_felt: felt252 = 0.into();
     let zero_address: ContractAddress = zero_address_felt.try_into().unwrap();
@@ -28,22 +34,6 @@ pub fn eth_rich_user() -> ContractAddress {
         .try_into()
         .unwrap();
     eth_rich_user
-}
-
-pub fn deploy_pragma_mock() -> ContractAddress {
-    let contract = declare("Pragma").unwrap().contract_class();
-    let oracle_address: ContractAddress =
-        0x06df335982dddce41008e4c03f2546fa27276567b5274c7d0c1262f3c2b5d167
-        .try_into()
-        .unwrap();
-    let summary_stats_address: ContractAddress =
-        0x06df335982dddce41008e4c03f2546fa27276567b5274c7d0c1262f3c2b5d167
-        .try_into()
-        .unwrap();
-    let (contract_address, _) = contract
-        .deploy(@array![oracle_address.into(), summary_stats_address.into()])
-        .unwrap();
-    contract_address
 }
 
 // end of helpers
@@ -88,7 +78,7 @@ pub fn deploy_account() -> (ContractAddress, IAccountDispatcher, ClassHash) {
 
 pub fn deploy_bridge() -> (ContractAddress, ILiquidityBridgeDispatcher) {
     let contract = declare("LiquidityBridge").unwrap().contract_class();
-    let pragma_address = deploy_pragma_mock();
+    let pragma_address: ContractAddress = 0x2a85bd616f912537c50a49a4076db02c00b29b2cdc8a197ce92ed1837fa875b.try_into().unwrap();
     let (contract_address, _) = contract
         .deploy(
             @array![
