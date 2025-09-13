@@ -45,4 +45,5 @@ pub trait ILiquidityBridge<T> {
     fn get_asset_price_median(self: @T, asset: DataType) -> (u128, u32);
     fn get_token_amount_in_usd(self: @T, token: ContractAddress, token_amount: u256) -> u256;
     fn fee_bps(self: @T) -> u16;
+    fn update_pragma_oracle_address(ref self: T, new_address: ContractAddress);
 }

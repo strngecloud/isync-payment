@@ -9,13 +9,15 @@ pub mod LiquidityBridge {
     use core::num::traits::{Pow, Zero};
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::upgrades::UpgradeableComponent;
+    use openzeppelin::upgrades::interface::IUpgradeable;
     use pragma_lib::abi::{IPragmaABIDispatcher, IPragmaABIDispatcherTrait};
     use pragma_lib::types::{AggregationMode, DataType, PragmaPricesResponse};
     use starknet::storage::{
         Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess,
         StoragePointerWriteAccess,
     };
-    use starknet::{ContractAddress, get_caller_address, get_contract_address};
+    use starknet::{ClassHash, ContractAddress, get_caller_address, get_contract_address};
     use crate::Errors::*;
     use crate::errors::LiquidityBridgeErrors;
     use crate::events::liquidityBridgeEvents::{
@@ -31,10 +33,16 @@ pub mod LiquidityBridge {
     impl OwnableMixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
     impl InternalImpl = OwnableComponent::InternalImpl<ContractState>;
 
+    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
+    impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
+    impl OwnableImpl = OwnableComponent::OwnableImpl<ContractState>;
+
     #[storage]
     struct Storage {
         #[substorage(v0)]
         ownable: OwnableComponent::Storage,
+        #[substorage(v0)]
+        upgradeable: UpgradeableComponent::Storage,
         should_succeed: bool,
         supported_tokens: Map<ContractAddress, felt252>, // (token_address => token_symbol)
         supported_tokens_by_symbol: Map<
@@ -61,6 +69,7 @@ pub mod LiquidityBridge {
     enum Event {
         #[flat]
         OwnableEvent: OwnableComponent::Event,
+        UpgradeableEvent: UpgradeableComponent::Event,
         FiatLiquidityAdded: FiatLiquidityAdded,
         TokenLiquidityAdded: TokenLiquidityAdded,
         FiatLiquidityRemoved: FiatLiquidityRemoved,
@@ -80,6 +89,8 @@ pub mod LiquidityBridge {
         treasury: ContractAddress,
         initial_fee_basis_points: u16,
         pragma_oracle_address: ContractAddress,
+        supported_assets: Array<ContractAddress>,
+        supported_feed_ids: Array<felt252>,
     ) {
         self.ownable.initializer(owner);
         self.treasury.write(treasury);
@@ -87,6 +98,11 @@ pub mod LiquidityBridge {
         self.should_succeed.write(true);
         self.token_count.write(0_u8);
         self.pragma_oracle_address.write(pragma_oracle_address);
+
+        for i in 0..supported_assets.len() {
+            self.supported_tokens.write(*supported_assets[i], *supported_feed_ids[i]);
+            self.supported_tokens_by_symbol.write(*supported_feed_ids[i], *supported_assets[i]);
+        }
     }
 
     #[abi(embed_v0)]
@@ -455,35 +471,31 @@ pub mod LiquidityBridge {
         fn get_token_amount_in_usd(
             self: @ContractState, token: ContractAddress, token_amount: u256,
         ) -> u256 {
-            let token_symbol = self.supported_tokens.read(token);
+            let feed_id = self.supported_tokens.read(token);
 
-            // // For testing: use mock prices (comment out for production)
-            // if token_symbol == 'ETH' {
-            //     return 3000_u256 * 10_u256.pow(18); // $3000 per ETH
-            // } else if token_symbol == 'STRK' {
-            //     return 2_u256 * 10_u256.pow(18); // $2 per STRK
-            // } else {
-            //     return 10_u256.pow(18); // $1 default
-            // }
-
-            // Production oracle code (currently commented out):
-            let feed_id: felt252 = if token_symbol == 'ETH' {
-                19514442401534788 // ETH/USD Pragma feed ID
-            } else if token_symbol == 'BTC' {
-                18669995996566340 // BTC/USD Pragma feed ID
-            } else if token_symbol == 'STRK' {
-                6004514686061859652
-            } else {
-                0
-            };
-
-            assert(!feed_id.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
             let (price, decimals) = self.get_asset_price_median(DataType::SpotEntry(feed_id));
             price.into() * token_amount / fast_power(10_u32, decimals).into()
         }
 
         fn fee_bps(self: @ContractState) -> u16 {
             self.fee_bps.read()
+        }
+
+        fn update_pragma_oracle_address(ref self: ContractState, new_address: ContractAddress) {
+            self.ownable.assert_only_owner();
+            self.pragma_oracle_address.write(new_address);
+        }
+    }
+
+    //
+    // Upgradeable
+    //
+
+    #[abi(embed_v0)]
+    impl UpgradeableImpl of IUpgradeable<ContractState> {
+        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+            self.ownable.assert_only_owner();
+            self.upgradeable.upgrade(new_class_hash);
         }
     }
 }
