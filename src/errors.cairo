@@ -11,6 +11,7 @@ pub mod AccountErrors {
 pub mod LiquidityBridgeErrors {
     pub const INVALID_TOKEN_ADDRESS: felt252 = 'Invalid token address';
     pub const NOT_REGISTERED: felt252 = 'Token not registered';
+    pub const TOKEN_ALREADY_SUPPORTED: felt252 = 'Token already supported';
     pub const INVALID_EXCHANGE_RATE: felt252 = 'Invalid exchange rate/not set';
     pub const INVALID_FIAT_SYMBOL: felt252 = 'fiat_currency is required';
     pub const INVALID_TOKEN_SYMBOL: felt252 = 'token_symbol is required';

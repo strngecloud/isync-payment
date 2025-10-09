@@ -1,5 +1,5 @@
 use pragma_lib::abi::DataType;
-    use starknet::ContractAddress;
+use starknet::ContractAddress;
 
 #[starknet::interface]
 pub trait ILiquidityBridge<T> {
@@ -47,4 +47,7 @@ pub trait ILiquidityBridge<T> {
     fn get_fee_bps(self: @T) -> u16;
     fn update_pragma_oracle_address(ref self: T, new_address: ContractAddress);
     fn get_supported_tokens_by_symbol(self: @T, _symbol: felt252) -> ContractAddress;
+    fn get_all_supported_tokens(self: @T) -> Array<ContractAddress>;
+    fn get_all_fiat_pools(self: @T) -> Array<felt252>;
+    fn get_all_token_pools(self: @T) -> Array<felt252>;
 }

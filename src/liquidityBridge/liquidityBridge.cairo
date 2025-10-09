@@ -48,11 +48,17 @@ pub mod LiquidityBridge {
         supported_tokens_by_symbol: Map<
             felt252, ContractAddress,
         >, // (token_symbol => token_address)
+        // Arrays to track keys for enumeration
+        supported_tokens_list: Map<u8, ContractAddress>, // index => token_address
+        supported_tokens_count: u8,
+        fiat_pools_list: Map<u8, felt252>, // index => fiat_symbol
+        fiat_pools_count: u8,
+        token_pools_list: Map<u8, felt252>, // index => token_symbol
+        token_pools_count: u8,
         // Liquidity pools (fiat-token pairs)
         fiat_pools: Map<felt252, u256>, // fiat_symbol => fiat_amount
         token_pools: Map<felt252, u256>, // token_symbol => token_amount
         fiat_providers: Map<(ContractAddress, felt252), u256>, // (provider, fiat_symbol) => amount
-        token_count: u8, // Number of supported tokens
         // User accounts
         user_accounts: Map<ContractAddress, bool>, // user address -> is registered
         fiat_account_id: Map<ContractAddress, felt252>, // starknet address -> fiat account id
@@ -96,13 +102,26 @@ pub mod LiquidityBridge {
         self.treasury.write(treasury);
         self.fee_bps.write(initial_fee_basis_points);
         self.should_succeed.write(true);
-        self.token_count.write(0_u8);
         self.pragma_oracle_address.write(pragma_oracle_address);
 
+        // Initialize tracking counters
+        self.supported_tokens_count.write(0_u8);
+        self.fiat_pools_count.write(0_u8);
+        self.token_pools_count.write(0_u8);
+
+        // Add initial supported tokens
         for i in 0..supported_assets.len() {
             self.supported_tokens.write(*supported_assets[i], *supported_feed_ids[i]);
             self.supported_tokens_by_symbol.write(*supported_feed_ids[i], *supported_assets[i]);
+
+            // Add to tracking list
+            let index: u8 = i.try_into().unwrap();
+            self.supported_tokens_list.write(index, *supported_assets[i]);
         }
+
+        // Update counter with total number of tokens added
+        let total_tokens: u8 = supported_assets.len().try_into().unwrap();
+        self.supported_tokens_count.write(total_tokens);
     }
 
     #[abi(embed_v0)]
@@ -114,7 +133,7 @@ pub mod LiquidityBridge {
             // Register user
             self.user_accounts.write(user, true);
             self.fiat_account_id.write(user, fiat_account_id);
-            self.emit(UserRegistered { user, fiat_account_id });
+            self.emit(UserRegistered { name: 'UserRegistered', user, fiat_account_id });
         }
 
         fn add_fiat_liquidity(ref self: ContractState, _fiat_symbol: felt252, _fiat_amount: u256) {
@@ -130,13 +149,24 @@ pub mod LiquidityBridge {
 
             // Update pool liquidity
             let old_fiat_liquidity = self.fiat_pools.read((_fiat_symbol));
+
+            // If this is a new fiat pool, add it to the tracking list
+            if old_fiat_liquidity == 0 {
+                let count = self.fiat_pools_count.read();
+                self.fiat_pools_list.write(count, _fiat_symbol);
+                self.fiat_pools_count.write(count + 1);
+            }
+
             let new_fiat_liquidity = old_fiat_liquidity + _fiat_amount;
             self.fiat_pools.write((_fiat_symbol), new_fiat_liquidity);
 
             self
                 .emit(
                     FiatLiquidityAdded {
-                        provider, fiat_symbol: _fiat_symbol, amount: _fiat_amount,
+                        name: 'FiatLiquidityAdded',
+                        provider,
+                        fiat_symbol: _fiat_symbol,
+                        amount: _fiat_amount,
                     },
                 );
         }
@@ -159,46 +189,27 @@ pub mod LiquidityBridge {
 
             // Update provider liquidity
             let current_token_amount = self.token_pools.read(_token_symbol);
+
+            // If this is a new token pool, add it to the tracking list
+            if current_token_amount == 0 {
+                let count = self.token_pools_count.read();
+                self.token_pools_list.write(count, _token_symbol);
+                self.token_pools_count.write(count + 1);
+            }
+
             let new_token_liquidity = current_token_amount + _token_amount;
             self.token_pools.write(_token_symbol, new_token_liquidity);
 
             self
                 .emit(
                     TokenLiquidityAdded {
-                        provider, token_symbol: _token_symbol, amount: _token_amount,
+                        name: 'TokenLiquidityAdded',
+                        provider,
+                        token_symbol: _token_symbol,
+                        amount: _token_amount,
                     },
                 );
         }
-
-        //         fn add_token_liquidity(
-        //     ref self: ContractState,
-        //     token_symbol: felt252,
-        //     token_address: ContractAddress,
-        //     amount: u256
-        // ) {
-        //     self.ownable.assert_only_owner();
-        //     assert(amount > 0, LiquidityBridgeErrors::INVALID_AMOUNT);
-
-        //     // Check if token is already added
-        //     if self.supported_tokens_by_symbol.read(token_symbol).is_zero() {
-        //         // Add new token
-        //         let token_count = self.token_count.read();
-        //         self.supported_tokens.write(token_address, token_count.into());
-        //         self.supported_tokens_by_symbol.write(token_symbol, token_address);
-        //         self.token_count.write(token_count + 1);
-        //     }
-
-        //     // Transfer tokens from caller to contract
-        //     let caller = get_caller_address();
-        //     IERC20Dispatcher { contract_address: token_address }
-        //         .transfer_from(caller, get_contract_address(), amount);
-
-        //     // Update token balance
-        //     let current_balance = self.token_pools.read(token_symbol);
-        //     self.token_pools.write(token_symbol, current_balance + amount);
-
-        //     self.emit(TokenLiquidityAdded { token_symbol, amount });
-        // }
 
         fn process_fiat_deposit(
             ref self: ContractState,
@@ -214,6 +225,7 @@ pub mod LiquidityBridge {
             self
                 .emit(
                     FiatDeposit {
+                        name: 'FiatDeposit',
                         user: _user,
                         fiat_account_id,
                         fiat_symbol: _fiat_symbol,
@@ -229,10 +241,18 @@ pub mod LiquidityBridge {
             self.ownable.assert_only_owner();
             assert(!_token_address.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
 
-            let current_token_count = self.token_count.read();
+            // Check if token is not already added
+            let existing_token = self.supported_tokens_by_symbol.read(_symbol);
+            assert(existing_token.is_zero(), LiquidityBridgeErrors::TOKEN_ALREADY_SUPPORTED);
+
+            // Add token mappings
             self.supported_tokens.write(_token_address, _symbol);
             self.supported_tokens_by_symbol.write(_symbol, _token_address);
-            self.token_count.write(current_token_count + 1);
+
+            // Add to tracking list and increment counter
+            let count = self.supported_tokens_count.read();
+            self.supported_tokens_list.write(count, _token_address);
+            self.supported_tokens_count.write(count + 1);
         }
 
         fn set_fee_bps(ref self: ContractState, fee_bps: u16) {
@@ -295,6 +315,7 @@ pub mod LiquidityBridge {
             self
                 .emit(
                     WithdrawalCompleted {
+                        name: 'WithdrawalCompleted',
                         user: _user,
                         token_symbol: _token_symbol,
                         amount: _amount,
@@ -326,7 +347,10 @@ pub mod LiquidityBridge {
             self
                 .emit(
                     FiatLiquidityRemoved {
-                        provider, fiat_symbol: _fiat_symbol, amount: _fiat_amount,
+                        name: 'FiatLiquidityRemoved',
+                        provider,
+                        fiat_symbol: _fiat_symbol,
+                        amount: _fiat_amount,
                     },
                 );
         }
@@ -373,6 +397,7 @@ pub mod LiquidityBridge {
             self
                 .emit(
                     FiatToTokenSwapExecuted {
+                        name: 'FiatToTokenSwapExecuted',
                         user: _user,
                         fiat_symbol: _fiat_symbol,
                         token_symbol: _token_symbol,
@@ -407,7 +432,7 @@ pub mod LiquidityBridge {
             assert(price_per_token > 0, LiquidityBridgeErrors::CANNOT_BE_ZERO);
 
             // 3. Calculate fiat amount and fee
-            let fee = (_token_amount * self.fee_bps.read().into()) / 10000_u256; 
+            let fee = (_token_amount * self.fee_bps.read().into()) / 10000_u256;
             let token_amount_after_fee = _token_amount - fee;
             let fiat_amount = (token_amount_after_fee * price_per_token) / 10_u256.pow(18);
 
@@ -417,12 +442,9 @@ pub mod LiquidityBridge {
                 available_fiat >= fiat_amount, LiquidityBridgeErrors::INSUFFICIENT_FIAT_LIQUIDITY,
             );
 
-            // 5. Verify fiat liquidity            
+            // 5. Verify fiat liquidity
             let fiat_balance = self.fiat_pools.read((_fiat_symbol));
-            assert(
-                fiat_balance >= fiat_amount,
-                LiquidityBridgeErrors::INSUFFICIENT_FIAT_LIQUIDITY,
-            );
+            assert(fiat_balance >= fiat_amount, LiquidityBridgeErrors::INSUFFICIENT_FIAT_LIQUIDITY);
 
             // 6. Transfer token from user to contract
             IERC20Dispatcher { contract_address: token }
@@ -438,11 +460,13 @@ pub mod LiquidityBridge {
                 );
 
             // 8. Send fee to treasury
-            IERC20Dispatcher { contract_address: token }.transfer_from(user, self.treasury.read(), fee);
+            IERC20Dispatcher { contract_address: token }
+                .transfer_from(user, self.treasury.read(), fee);
 
             self
                 .emit(
                     TokenToFiatSwapExecuted {
+                        name: 'TokenToFiatSwapExecuted',
                         user,
                         fiat_symbol: _fiat_symbol,
                         token_symbol: _token_symbol,
@@ -489,8 +513,70 @@ pub mod LiquidityBridge {
             self.pragma_oracle_address.write(new_address);
         }
 
-        fn get_supported_tokens_by_symbol(self: @ContractState, _symbol: felt252) -> ContractAddress {
+        fn get_supported_tokens_by_symbol(
+            self: @ContractState, _symbol: felt252,
+        ) -> ContractAddress {
             self.supported_tokens_by_symbol.read(_symbol)
+        }
+
+        fn get_all_supported_tokens(self: @ContractState) -> Array<ContractAddress> {
+            let mut result: Array<ContractAddress> = ArrayTrait::new();
+            let count = self.supported_tokens_count.read();
+
+            // Pre-check if we have any tokens to avoid gas costs on empty iterations
+            if count == 0 {
+                return result;
+            }
+
+            // Iterate through all supported tokens
+            let mut i: u8 = 0;
+            while i != count {
+                let token_address = self.supported_tokens_list.read(i);
+                result.append(token_address);
+                i += 1;
+            }
+
+            result
+        }
+
+        fn get_all_fiat_pools(self: @ContractState) -> Array<felt252> {
+            let mut result: Array<felt252> = ArrayTrait::new();
+            let count = self.fiat_pools_count.read();
+
+            // Pre-check if we have any fiat pools to avoid gas costs on empty iterations
+            if count == 0 {
+                return result;
+            }
+
+            // Iterate through all fiat pools
+            let mut i: u8 = 0;
+            while i != count {
+                let fiat_symbol = self.fiat_pools_list.read(i);
+                result.append(fiat_symbol);
+                i += 1;
+            }
+
+            result
+        }
+
+        fn get_all_token_pools(self: @ContractState) -> Array<felt252> {
+            let mut result: Array<felt252> = ArrayTrait::new();
+            let count = self.token_pools_count.read();
+
+            // Pre-check if we have any token pools to avoid gas costs on empty iterations
+            if count == 0 {
+                return result;
+            }
+
+            // Iterate through all token pools
+            let mut i: u8 = 0;
+            while i != count {
+                let token_symbol = self.token_pools_list.read(i);
+                result.append(token_symbol);
+                i += 1;
+            }
+
+            result
         }
     }
 
