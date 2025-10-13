@@ -206,7 +206,7 @@ fn test_direct_payment() {
     account.deposit_fiat(currency, deposit_amount);
 
     // Make payment
-    let success = account.make_payment(recipient, currency, payment_amount, false);
+    let success = account.make_payment('543tw4g45', recipient, currency, payment_amount, false);
 
     assert!(success, "Payment should succeed");
 
@@ -245,7 +245,7 @@ fn test_payment_insufficient_balance_without_bridge() {
 
     account.deposit_fiat(currency, deposit_amount);
 
-    let success = account.make_payment(recipient, currency, payment_amount, false);
+    let success = account.make_payment('543tw4g45', recipient, currency, payment_amount, false);
 
     assert!(!success, "Payment should fail");
     assert_eq!(

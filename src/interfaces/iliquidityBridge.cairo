@@ -30,19 +30,28 @@ pub trait ILiquidityBridge<T> {
     fn swap_fiat_to_token(
         ref self: T,
         _user: ContractAddress,
+        _swap_order_id: felt252,
         _fiat_symbol: felt252,
         _token_symbol: felt252,
         _fiat_amount: u256,
     ) -> bool;
     fn swap_token_to_fiat(
-        ref self: T, _fiat_symbol: felt252, _token_symbol: felt252, _token_amount: u256,
+        ref self: T,
+        _user: ContractAddress,
+        _swap_order_id: felt252,
+        _fiat_symbol: felt252,
+        _token_symbol: felt252,
+        _token_amount: u256,
     ) -> bool;
     fn set_fee_bps(ref self: T, fee_bps: u16);
-    
+
     fn get_fiat_account_id(self: @T, _user: ContractAddress) -> felt252;
     fn get_token_balance(self: @T, _token_symbol: felt252) -> u256;
     fn get_fiat_balance(self: @T, _fiat_symbol: felt252) -> u256;
     fn get_asset_price_median(self: @T, asset: DataType) -> (u128, u32);
+    fn check_price_threshold(
+        self: @T, token: ContractAddress, expected_min_price: u256, expected_max_price: u256,
+    ) -> bool;
     fn get_token_amount_in_usd(self: @T, token: ContractAddress, token_amount: u256) -> u256;
     fn get_fee_bps(self: @T) -> u16;
     fn update_pragma_oracle_address(ref self: T, new_address: ContractAddress);

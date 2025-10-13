@@ -43,6 +43,7 @@ pub struct FiatToTokenSwapExecuted {
     #[key]
     pub name: felt252,
     pub user: ContractAddress,
+    pub swap_order_id: felt252,
     pub fiat_symbol: felt252,
     pub token_symbol: felt252,
     pub fiat_amount: u256,
@@ -55,6 +56,7 @@ pub struct TokenToFiatSwapExecuted {
     #[key]
     pub name: felt252,
     pub user: ContractAddress,
+    pub swap_order_id: felt252,
     pub fiat_symbol: felt252,
     pub token_symbol: felt252,
     pub fiat_amount: u256,

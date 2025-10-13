@@ -157,6 +157,7 @@ pub mod Account {
 
         fn make_payment(
             ref self: ContractState,
+            swap_order_id: felt252,
             recipient: ContractAddress,
             currency: felt252,
             amount: u128,
@@ -190,6 +191,7 @@ pub mod Account {
                 self
                     .emit(
                         PaymentMade {
+                            swap_order_id,
                             from: account_address,
                             to: recipient,
                             currency,
@@ -219,9 +221,10 @@ pub mod Account {
                 // It will use the account_address to see if the user has enough crypto to swap
                 // Deduct the amount from the token account after successful swap
                 // Credit user with the amount required to complete the payment
+                let account_address = get_contract_address();
                 let success = bridge_dispatcher
                     .swap_token_to_fiat(
-                        currency, crypto_symbol, amount_to_swap.into(),
+                        account_address, swap_order_id, currency, crypto_symbol, amount_to_swap.into(),
                     ); // the swap_token_to_fiat will use the liquidity bridge to swap crypto to fiat 
 
                 if success {
@@ -250,6 +253,7 @@ pub mod Account {
                     self
                         .emit(
                             PaymentMade {
+                                swap_order_id,
                                 from: account_address,
                                 to: recipient,
                                 currency,
@@ -290,6 +294,7 @@ pub mod Account {
         fn swap_fiat_to_token(
             ref self: ContractState,
             _user: ContractAddress,
+            _swap_order_id: felt252,
             _fiat_symbol: felt252,
             _token_symbol: felt252,
             _fiat_amount: u256,
@@ -299,18 +304,18 @@ pub mod Account {
             assert(!bridge.is_zero(), 'Liquidity bridge not set');
 
             let bridge_dispatcher = ILiquidityBridgeDispatcher { contract_address: bridge };
-            bridge_dispatcher.swap_fiat_to_token(get_contract_address(), _fiat_symbol, _token_symbol, _fiat_amount)
+            bridge_dispatcher.swap_fiat_to_token(get_contract_address(), _swap_order_id, _fiat_symbol, _token_symbol, _fiat_amount)
         }
 
         fn swap_token_to_fiat(
-            ref self: ContractState, _fiat_symbol: felt252, _token_symbol: felt252, _token_amount: u256,
+            ref self: ContractState, _user: ContractAddress, _swap_order_id: felt252, _fiat_symbol: felt252, _token_symbol: felt252, _token_amount: u256,
         ) -> bool {
             self.account.assert_only_self();
             let bridge = self.liquidity_bridge.read();
             assert(!bridge.is_zero(), 'Liquidity bridge not set');
 
             let bridge_dispatcher = ILiquidityBridgeDispatcher { contract_address: bridge };
-            bridge_dispatcher.swap_token_to_fiat(_fiat_symbol, _token_symbol, _token_amount)
+            bridge_dispatcher.swap_token_to_fiat(_user, _swap_order_id, _fiat_symbol, _token_symbol, _token_amount)
         }
     }
 

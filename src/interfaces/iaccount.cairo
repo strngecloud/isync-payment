@@ -8,6 +8,7 @@ pub trait IAccount<T> {
     fn withdraw_fiat(ref self: T, currency: felt252, amount: u128, recipient: ContractAddress);
     fn make_payment(
         ref self: T,
+        swap_order_id: felt252,
         recipient: ContractAddress,
         currency: felt252,
         amount: u128,
@@ -24,11 +25,17 @@ pub trait IAccount<T> {
     fn swap_fiat_to_token(
         ref self: T,
         _user: ContractAddress,
+        _swap_order_id: felt252,
         _fiat_symbol: felt252,
         _token_symbol: felt252,
         _fiat_amount: u256,
     ) -> bool;
     fn swap_token_to_fiat(
-        ref self: T, _fiat_symbol: felt252, _token_symbol: felt252, _token_amount: u256,
+        ref self: T,
+        _user: ContractAddress,
+        _swap_order_id: felt252,
+        _fiat_symbol: felt252,
+        _token_symbol: felt252,
+        _token_amount: u256,
     ) -> bool;
 }

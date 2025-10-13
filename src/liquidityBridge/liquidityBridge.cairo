@@ -8,7 +8,10 @@ pub mod LiquidityBridge {
     use alexandria_math::fast_power::fast_power;
     use core::num::traits::{Pow, Zero};
     use openzeppelin::access::ownable::OwnableComponent;
-    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::token::erc20::interface::{
+        IERC20Dispatcher, IERC20DispatcherTrait, IERC20MetadataDispatcher,
+        IERC20MetadataDispatcherTrait,
+    };
     use openzeppelin::upgrades::UpgradeableComponent;
     use openzeppelin::upgrades::interface::IUpgradeable;
     use pragma_lib::abi::{IPragmaABIDispatcher, IPragmaABIDispatcherTrait};
@@ -358,6 +361,7 @@ pub mod LiquidityBridge {
         fn swap_fiat_to_token(
             ref self: ContractState,
             _user: ContractAddress,
+            _swap_order_id: felt252,
             _fiat_symbol: felt252,
             _token_symbol: felt252,
             _fiat_amount: u256,
@@ -371,12 +375,16 @@ pub mod LiquidityBridge {
             assert(!token.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
             assert(_fiat_amount > 0, LiquidityBridgeErrors::INVALID_AMOUNT);
 
-            // let rate = self.get_token_amount_in_usd(token, _fiat_amount);
-            let price_per_token = self.get_token_amount_in_usd(token, 10_u256.pow(18));
+            // Get token decimals from ERC20 contract
+            let token_decimals = IERC20MetadataDispatcher { contract_address: token }.decimals();
+            let decimals_power = 10_u256.pow(token_decimals.into());
+
+            // Get current price of 1 token (normalized to token's actual decimals)
+            let price_per_token = self.get_token_amount_in_usd(token, decimals_power);
             assert(price_per_token > 0, LiquidityBridgeErrors::INVALID_EXCHANGE_RATE);
 
-            // 3. Calculate token amount and fee (1e18 precision)
-            let token_amount = (_fiat_amount) / price_per_token;
+            // 3. Calculate token amount and fee
+            let token_amount = (_fiat_amount * decimals_power) / price_per_token;
             let fee = (token_amount * self.fee_bps.read().into()) / 10000_u256;
             let token_amount_after_fee = token_amount - fee;
 
@@ -399,6 +407,7 @@ pub mod LiquidityBridge {
                     FiatToTokenSwapExecuted {
                         name: 'FiatToTokenSwapExecuted',
                         user: _user,
+                        swap_order_id: _swap_order_id,
                         fiat_symbol: _fiat_symbol,
                         token_symbol: _token_symbol,
                         fiat_amount: _fiat_amount,
@@ -412,6 +421,8 @@ pub mod LiquidityBridge {
 
         fn swap_token_to_fiat(
             ref self: ContractState,
+            _user: ContractAddress,
+            _swap_order_id: felt252,
             _fiat_symbol: felt252,
             _token_symbol: felt252,
             _token_amount: u256,
@@ -421,34 +432,33 @@ pub mod LiquidityBridge {
             }
 
             // 1. Verify inputs
-            let user = get_caller_address();
-            assert(self.user_accounts.read(user), LiquidityBridgeErrors::USER_NOT_REGISTERED);
+            assert(self.user_accounts.read(_user), LiquidityBridgeErrors::USER_NOT_REGISTERED);
             let token = self.supported_tokens_by_symbol.read(_token_symbol);
-            assert(!token.is_zero(), LiquidityBridgeErrors::INVALID_TOKEN_ADDRESS);
+            assert(!token.is_zero(), LiquidityBridgeErrors::INVALID_SUPPORTED_TOKEN_ADDRESS);
             assert(_token_amount > 0, LiquidityBridgeErrors::INVALID_AMOUNT);
 
-            // 2. Get current rate of token
-            let price_per_token = self.get_token_amount_in_usd(token, 10_u256.pow(18));
+            // 2. Get token decimals from ERC20 contract
+            let token_decimals = IERC20MetadataDispatcher { contract_address: token }.decimals();
+            let decimals_power = 10_u256.pow(token_decimals.into());
+
+            // 3. Get current price of 1 token (normalized to token's actual decimals)
+            let price_per_token = self.get_token_amount_in_usd(token, decimals_power);
             assert(price_per_token > 0, LiquidityBridgeErrors::CANNOT_BE_ZERO);
 
-            // 3. Calculate fiat amount and fee
+            // 4. Calculate fiat amount and fee
             let fee = (_token_amount * self.fee_bps.read().into()) / 10000_u256;
             let token_amount_after_fee = _token_amount - fee;
-            let fiat_amount = (token_amount_after_fee * price_per_token) / 10_u256.pow(18);
+            let fiat_amount = (token_amount_after_fee * price_per_token) / decimals_power;
 
-            // 4. Verify fiat liquidity
+            // 5. Verify fiat liquidity
             let available_fiat = self.fiat_pools.read((_fiat_symbol));
             assert(
                 available_fiat >= fiat_amount, LiquidityBridgeErrors::INSUFFICIENT_FIAT_LIQUIDITY,
             );
 
-            // 5. Verify fiat liquidity
-            let fiat_balance = self.fiat_pools.read((_fiat_symbol));
-            assert(fiat_balance >= fiat_amount, LiquidityBridgeErrors::INSUFFICIENT_FIAT_LIQUIDITY);
-
             // 6. Transfer token from user to contract
             IERC20Dispatcher { contract_address: token }
-                .transfer_from(user, get_contract_address(), token_amount_after_fee);
+                .transfer_from(_user, get_contract_address(), token_amount_after_fee);
 
             // 7. Update pools
             self.fiat_pools.write((_fiat_symbol), available_fiat - fiat_amount); // DECREASE fiat
@@ -461,13 +471,14 @@ pub mod LiquidityBridge {
 
             // 8. Send fee to treasury
             IERC20Dispatcher { contract_address: token }
-                .transfer_from(user, self.treasury.read(), fee);
+                .transfer_from(_user, self.treasury.read(), fee);
 
             self
                 .emit(
                     TokenToFiatSwapExecuted {
                         name: 'TokenToFiatSwapExecuted',
-                        user,
+                        user: _user,
+                        swap_order_id: _swap_order_id,
                         fiat_symbol: _fiat_symbol,
                         token_symbol: _token_symbol,
                         fiat_amount,
@@ -488,20 +499,26 @@ pub mod LiquidityBridge {
             return (output.price, output.decimals);
         }
 
+        fn check_price_threshold(
+            self: @ContractState,
+            token: ContractAddress,
+            expected_min_price: u256,
+            expected_max_price: u256,
+        ) -> bool {
+            let decimals_power = 10_u256.pow(18_u32); // 1 token in smallest unit
+            let current_price = self.get_token_amount_in_usd(token, decimals_power);
+            current_price >= expected_min_price && current_price <= expected_max_price
+        }
+
         fn get_token_amount_in_usd(
             self: @ContractState, token: ContractAddress, token_amount: u256,
         ) -> u256 {
-            let pragma_address = self.pragma_oracle_address.read();
-            let test_pragma_address: ContractAddress = 1.try_into().unwrap();
-
-            if pragma_address == test_pragma_address {
-                return 2000_u256;
-            }
-
+            let token_decimals = 18_u32;
+            let decimals_power = 10_u256.pow(token_decimals.into());
             let feed_id = self.supported_tokens.read(token);
 
-            let (price, decimals) = self.get_asset_price_median(DataType::SpotEntry(feed_id));
-            price.into() * token_amount / fast_power(10_u32, decimals).into()
+            let (price, _) = self.get_asset_price_median(DataType::SpotEntry(feed_id));
+            price.into() * token_amount / decimals_power
         }
 
         fn get_fee_bps(self: @ContractState) -> u16 {
