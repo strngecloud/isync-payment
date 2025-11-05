@@ -26,6 +26,10 @@ command: declare
 class_hash: 0x04d0116e741631dacd290ad6e948b80bc2effd0e3bf18f1b0ee0eac427fbb61b
 transaction_hash: 0x00dfeb16f045e53e68dc59dcb8bff222ac38d2b0749eae1dd4155b4e549f7f0d
 
+command: declare
+class_hash: 0x00a124fe416e557dda1f767c48fd7f8e9a91f53a691e2684dccaf588a3472ca9
+transaction_hash: 0x059c4bf98da5bca67582aefd48816b0785c83490314a5128f4674cdd57d5d5fc
+
 # Deploy Liquidity Bridge
 sncast deploy \
   --class-hash 0x04d0116e741631dacd290ad6e948b80bc2effd0e3bf18f1b0ee0eac427fbb61b \

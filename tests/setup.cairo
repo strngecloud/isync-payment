@@ -1,7 +1,9 @@
+use snforge_std::stop_cheat_caller_address;
+use snforge_std::start_cheat_caller_address;
 use isyncpayment::interfaces::iaccount::IAccountDispatcher;
 use isyncpayment::interfaces::iaccountFactory::IAccountFactoryDispatcher;
 use isyncpayment::interfaces::ierc20::SyncTokenDispatcher;
-use isyncpayment::interfaces::iliquidityBridge::ILiquidityBridgeDispatcher;
+use isyncpayment::interfaces::iliquidityBridge::{ILiquidityBridgeDispatcher, ILiquidityBridgeDispatcherTrait};
 use snforge_std::{ContractClassTrait, DeclareResultTrait, declare};
 use starknet::{ClassHash, ContractAddress};
 
@@ -12,13 +14,13 @@ pub fn owner() -> ContractAddress {
 }
 
 pub fn random_user() -> ContractAddress {
-    let random_user_felt: felt252 = 23433.into();
+    let random_user_felt: felt252 = 0x23433.into();
     let random_user: ContractAddress = random_user_felt.try_into().unwrap();
     random_user
 }
 
 pub fn random_user2() -> ContractAddress {
-    let random_user2_felt: felt252 = 523433.into();
+    let random_user2_felt: felt252 = 0x523433.into();
     let random_user2: ContractAddress = random_user2_felt.try_into().unwrap();
     random_user2
 }
@@ -98,6 +100,11 @@ pub fn deploy_bridge(
 
     let (contract_address, _) = bridge_class.deploy(@constructor_calldata).unwrap();
     let bridge_dispatcher = ILiquidityBridgeDispatcher { contract_address };
+    
+    // Authorize the owner as an operator
+    start_cheat_caller_address(contract_address, owner);
+    bridge_dispatcher.set_operator(owner, true);
+    stop_cheat_caller_address(contract_address);
 
     (contract_address, bridge_dispatcher)
 }

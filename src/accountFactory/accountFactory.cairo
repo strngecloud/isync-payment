@@ -68,6 +68,7 @@ pub mod AccountFactory {
     impl AccountFactoryImpl of IAccountFactory<ContractState> {
         fn create_account(ref self: ContractState, public_key: felt252, user_unique_id: felt252) {
             assert(self.accounts.read(user_unique_id).is_zero(), ACCOUNT_ALREADY_EXIST);
+            assert(!public_key.is_zero(), 'Public key cannot be zero');
 
             //Deploy proxy for upgradable account
             let (account, _) = deploy_syscall(
@@ -75,16 +76,8 @@ pub mod AccountFactory {
             )
                 .expect('failed to deploy account');
 
-            let token_address: ContractAddress =
-                0x06ab048153cdf6ee3ab9328fa0b8d16c09670581a5a446749facfd229362bf0e
-                .try_into()
-                .unwrap(); // TODO: will add it to contract initialization
-
             self.accounts.write(user_unique_id, account);
             self.default_fiat_currency.write('NAIRA'.try_into().unwrap());
-            let mut accountDispatcher = IAccountDispatcher { contract_address: account };
-            accountDispatcher.set_default_fiat_currency(self.default_fiat_currency.read());
-            accountDispatcher.approve_token('SYNC'.into(), token_address);
 
             self.emit(AccountCreated { user: user_unique_id, address: account, public_key });
         }
@@ -118,11 +111,16 @@ pub mod AccountFactory {
             _fiat_symbol: felt252,
             _token_symbol: felt252,
             _fiat_amount: u256,
+            _token_amount: u256,
+            _fee: u128,
         ) -> bool {
             let user_account = self.accounts.read(user_unique_id);
             assert(!user_account.is_zero(), 'Account does not exist');
             let mut account_dispatcher = IAccountDispatcher { contract_address: user_account };
-            account_dispatcher.swap_fiat_to_token(user_account, _swap_order_id, _fiat_symbol, _token_symbol, _fiat_amount)
+            account_dispatcher
+                .swap_fiat_to_token(
+                    _swap_order_id, _fiat_symbol, _token_symbol, _fiat_amount, _token_amount, _fee,
+                )
         }
 
         fn swap_token_to_fiat(
@@ -136,7 +134,8 @@ pub mod AccountFactory {
             let user_account = self.accounts.read(user_unique_id);
             assert(!user_account.is_zero(), 'Account does not exist');
             let mut account_dispatcher = IAccountDispatcher { contract_address: user_account };
-            account_dispatcher.swap_token_to_fiat(user_account, _swap_order_id, _fiat_symbol, _token_symbol, _token_amount)
+            account_dispatcher
+                .swap_token_to_fiat(_swap_order_id, _fiat_symbol, _token_symbol, _token_amount)
         }
     }
 

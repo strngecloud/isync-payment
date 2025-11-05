@@ -99,8 +99,6 @@ fn test_set_account_class_hash_success() {
     start_cheat_caller_address(factory_address, owner());
 
     factory.set_account_class_hash(new_class_hash);
-    // Note: We can't directly verify class hash, but we can create a new account
-    // and verify it uses the new class hash
     stop_cheat_caller_address(factory_address);
 }
 

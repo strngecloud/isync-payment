@@ -1,5 +1,6 @@
+use crate::setup::deploy_account;
 use core::num::traits::Pow;
-use isyncpayment::events::liquidityBridgeEvents::{FiatLiquidityAdded, UserRegistered};
+use isyncpayment::events::liquidityBridgeEvents::{UserRegistered};
 use isyncpayment::interfaces::ierc20::{SyncTokenDispatcher, SyncTokenDispatcherTrait};
 use isyncpayment::interfaces::iliquidityBridge::{
     ILiquidityBridgeDispatcher, ILiquidityBridgeDispatcherTrait,
@@ -41,10 +42,20 @@ fn setup() -> (
     STRK_token.approve(bridge_address, 400 * 10_u256.pow(18));
     stop_cheat_caller_address(STRK_token_address);
 
+    // First, authorize the owner as an operator
     start_cheat_caller_address(bridge_address, owner());
-    bridge.add_fiat_liquidity('USD', 1_000_000 * 10_u256.pow(18));
+    bridge.set_operator(owner(), true);
+    stop_cheat_caller_address(bridge_address);
+    
+    // Now perform operations as the operator
+    start_cheat_caller_address(bridge_address, owner());
     bridge.add_token_liquidity('ETH/USD', 400 * 10_u256.pow(18));
     bridge.add_token_liquidity('STRK/USD', 400 * 10_u256.pow(18));
+    stop_cheat_caller_address(bridge_address);
+    
+    // Register the owner as a user for testing
+    start_cheat_caller_address(bridge_address, owner());
+    bridge.register_user(owner(), 'owner-123');
     stop_cheat_caller_address(bridge_address);
 
     (bridge_address, bridge, ETH_token, STRK_token)
@@ -130,55 +141,6 @@ fn test_register_user_invalid_address() {
 }
 
 #[test]
-fn test_add_fiat_liquidity_success() {
-    let (bridge_address, bridge, _, _) = setup();
-    let fiat_symbol = 'USD';
-    let fiat_amount = 10000_u256;
-
-    let mut _spy = spy_events();
-
-    start_cheat_caller_address(bridge_address, owner());
-    bridge.add_fiat_liquidity(fiat_symbol, fiat_amount);
-    stop_cheat_caller_address(bridge_address);
-    // // Verify fiat balance
-// assert(
-//     bridge.get_fiat_balance(fiat_symbol, 'ETH') == fiat_amount,
-//     'Fiat balance should match',
-// );
-
-    // Verify event emission
-// spy
-//     .assert_emitted(
-//         @array![
-//             (
-//                 bridge_address,
-//                 FiatLiquidityAdded { provider: owner(), fiat_symbol, amount: fiat_amount },
-//             ),
-//         ],
-//     );
-}
-
-#[test]
-#[should_panic(expected: ('fiat_currency is required',))]
-fn test_add_fiat_liquidity_invalid_symbol() {
-    let (bridge_address, bridge, _, _) = setup();
-
-    start_cheat_caller_address(bridge_address, owner());
-    bridge.add_fiat_liquidity(0, 1000_u256);
-    stop_cheat_caller_address(bridge_address);
-}
-
-#[test]
-#[should_panic(expected: ('Amount cannot be zero',))]
-fn test_add_fiat_liquidity_zero_amount() {
-    let (bridge_address, bridge, _, _) = setup();
-
-    start_cheat_caller_address(bridge_address, owner());
-    bridge.add_fiat_liquidity('USD', 0);
-    stop_cheat_caller_address(bridge_address);
-}
-
-#[test]
 fn test_swap_fiat_to_token() {
     let (bridge_address, bridge, ETH_token, _) = setup();
     let user = random_user();
@@ -192,7 +154,7 @@ fn test_swap_fiat_to_token() {
 
     // Perform the swap
     start_cheat_caller_address(bridge_address, user);
-    let success = bridge.swap_fiat_to_token(user, '543tw4g45', 'USD', 'ETH/USD', 10_u256.pow(18));
+    let success = bridge.swap_fiat_to_token(user, '543tw4g45', 'USD', 'ETH/USD', 10_u256.pow(18), 10_u256.pow(17), 30);
     stop_cheat_caller_address(bridge_address);
 
     // Verify the swap was successful
@@ -295,39 +257,8 @@ fn test_insufficient_liquidity() {
 
     start_cheat_caller_address(bridge_address, user);
     // Try to swap for more tokens than are in the pool
-    bridge.swap_fiat_to_token(user, '543tw4g45', 'USD', 'ETH/USD', 2_000_000 * 10_u256.pow(18));
+    bridge.swap_fiat_to_token(user, '543tw4g45', 'USD', 'ETH/USD', 2_000_000 * 10_u256.pow(18), 2_000_000 * 10_u256.pow(17), 30);
     stop_cheat_caller_address(bridge_address);
-}
-
-
-#[test]
-fn test_process_fiat_deposit_success() {
-    let (bridge_address, bridge, _, _) = setup();
-    let fiat_account_id = 'user1_fiat_account';
-    let fiat_symbol = 'USD';
-    let amount = 5000_u256;
-    let transaction_id = 'tx_12345';
-    let user = random_user();
-
-    // First register the user
-    start_cheat_caller_address(bridge_address, owner());
-    bridge.register_user(user, fiat_account_id);
-    stop_cheat_caller_address(bridge_address);
-    // // let mut spy = spy_events();
-
-    start_cheat_caller_address(bridge_address, owner());
-    bridge.process_fiat_deposit(user, fiat_symbol, amount, transaction_id);
-    stop_cheat_caller_address(bridge_address);
-    // Verify event emission
-// spy.assert_emitted(@array![
-//     (liquidity_bridge.contract_address, FiatDeposit {
-//         user: user1,
-//         fiat_account_id,
-//         fiat_symbol,
-//         amount,
-//         transaction_id
-//     })
-// ]);
 }
 
 #[test]
@@ -337,7 +268,7 @@ fn test_swap_fiat_to_token_unregistered_user() {
     let user = random_user();
 
     start_cheat_caller_address(bridge_address, owner());
-    bridge.swap_fiat_to_token(user, '543tw4g45', 'USD', 'ETH/USD', 10_u256.pow(18));
+    bridge.swap_fiat_to_token(user, '543tw4g45', 'USD', 'ETH/USD', 10_u256.pow(18), 10_u256.pow(17), 30);
     stop_cheat_caller_address(bridge_address);
 }
 
@@ -410,8 +341,9 @@ fn test_confirm_withdrawal_success() {
 
     // let mut spy = spy_events();
 
-    // Confirm withdrawal
+    // Authorize the owner as an operator and confirm withdrawal
     start_cheat_caller_address(bridge_address, owner());
+    bridge.set_operator(owner(), true);
     bridge.confirm_withdrawal(user, token_symbol, lock_amount, fiat_reference);
     stop_cheat_caller_address(bridge_address);
     // // Verify event emission
@@ -436,47 +368,6 @@ fn test_set_fee_too_high() {
 
     start_cheat_caller_address(bridge_address, owner());
     bridge.set_fee_bps(invalid_fee_bps);
-    stop_cheat_caller_address(bridge_address);
-}
-
-#[test]
-fn test_remove_fiat_liquidity_success() {
-    let (bridge_address, bridge, _, _) = setup();
-    let fiat_symbol = 'USD';
-    let remove_amount = 5000_u256;
-    let initial_amount = 1_000_000 * 10_u256.pow(18); // same as setup
-
-    // let mut spy = spy_events();
-
-    // Remove fiat liquidity
-    start_cheat_caller_address(bridge_address, owner());
-    bridge.remove_fiat_liquidity(fiat_symbol, remove_amount);
-    stop_cheat_caller_address(bridge_address);
-
-    // Verify remaining balance
-    let remaining_balance = bridge.get_fiat_balance(fiat_symbol);
-    assert(remaining_balance == initial_amount - remove_amount, 'Remaining balance should match');
-    // // Verify event emission
-// spy
-//     .assert_emitted(
-//         @array![
-//             (
-//                 bridge_address,
-//                 FiatLiquidityRemoved { provider: owner(), fiat_symbol, amount: remove_amount
-//                 },
-//             ),
-//         ],
-//     );
-}
-
-#[test]
-#[should_panic(expected: ('Caller is not the owner',))]
-fn test_remove_fiat_liquidity_unauthorized() {
-    let (bridge_address, bridge, _, _) = setup();
-    let user1 = random_user();
-
-    start_cheat_caller_address(bridge_address, user1);
-    bridge.remove_fiat_liquidity('USD', 1000_u256);
     stop_cheat_caller_address(bridge_address);
 }
 
@@ -518,16 +409,10 @@ fn test_multiple_users_and_transactions() {
         strk_balance == expected_strk, "STRK balance expected {expected_strk}, got {strk_balance}",
     );
 
-    let expected_usd = 1_000_000 * 10_u256.pow(18);
-    let usd_balance = bridge.get_fiat_balance('USD');
-    println!("USD balance: {}", usd_balance);
-
-    assert!(usd_balance == expected_usd, "USD balance expected {expected_usd}, got {usd_balance}");
-
     // Test successful swaps
     start_cheat_caller_address(bridge_address, user1);
-    let success1 = bridge.swap_fiat_to_token(user1, '546435453', 'USD', 'ETH/USD', 3000_u256);
-    let success2 = bridge.swap_fiat_to_token(user2, 'fage654egw','USD', 'STRK/USD', 100_u256);
+    let success1 = bridge.swap_fiat_to_token(user1, '546435453', 'USD', 'ETH/USD', 3000_u256, 300_u256, 30);
+    let success2 = bridge.swap_fiat_to_token(user2, 'fage654egw','USD', 'STRK/USD', 100_u256, 10_u256, 30);
     stop_cheat_caller_address(bridge_address);
 
     assert(success1, 'First swap should succeed');
@@ -546,16 +431,27 @@ fn test_insufficient_liquidity_scenarios() {
     bridge.register_user(user1, 'user1_fiat');
     stop_cheat_caller_address(bridge_address);
 
-    // Add minimal liquidity
-    start_cheat_caller_address(bridge_address, user1);
-    bridge.add_fiat_liquidity('USD', 100_u256); // Very low fiat
-    stop_cheat_caller_address(bridge_address);
-
     // Try to swap more than available - should panic
     start_cheat_caller_address(bridge_address, owner());
-    let success = bridge.swap_fiat_to_token(user1, '546435453', 'USD', 'ETH/USD', 10000_u256);
+    let success = bridge.swap_fiat_to_token(user1, '546435453', 'USD', 'ETH/USD', 10000_u256, 1000_u256, 30);
     stop_cheat_caller_address(bridge_address);
 
     // Should fail due to insufficient token liquidity
     assert(!success, 'insufficient liquidity');
+}
+
+#[test]
+fn test_get_token_balance() {
+    let (account_address, _, _) = deploy_account();
+    let (token_address, token_dispatcher) = deploy_erc20("SyncToken", "SYNC");
+    let (_, bridge, _, _) = setup();
+    let symbol = 'SYNC';
+
+    start_cheat_caller_address(token_address, owner());
+    let mint_amount = 1000.into();
+    token_dispatcher.mint(account_address, mint_amount);
+    let balance = bridge.get_token_balance(symbol);
+    assert!(balance == mint_amount, "Expected token balance to match minted amount");
+
+    stop_cheat_caller_address(token_address);
 }

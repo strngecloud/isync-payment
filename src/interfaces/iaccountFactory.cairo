@@ -16,6 +16,8 @@ pub trait IAccountFactory<T> {
         _fiat_symbol: felt252,
         _token_symbol: felt252,
         _fiat_amount: u256,
+        _token_amount: u256,
+        _fee: u128,
     ) -> bool;
     fn swap_token_to_fiat(
         ref self: T,
