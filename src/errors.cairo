@@ -36,10 +36,10 @@ pub mod LiquidityBridgeErrors {
 }
 
 pub mod StakingErrors {
-    pub const POOL_NOT_FOUND: felt252 = 'Pool does not exist';
-    pub const POOL_NOT_ACTIVE: felt252 = 'Pool is not active';
     pub const POOL_ALREADY_EXISTS: felt252 = 'Pool already exists';
-    pub const INVALID_AMOUNT: felt252 = 'Invalid stake amount';
+    pub const POOL_DOES_NOT_EXIST: felt252 = 'Pool does not exist';
+    pub const POOL_NOT_ACTIVE: felt252 = 'Pool is not active';
+    pub const INVALID_AMOUNT: felt252 = 'Invalid staking amount';
     pub const AMOUNT_TOO_LOW: felt252 = 'Amount below minimum';
     pub const AMOUNT_TOO_HIGH: felt252 = 'Amount exceeds maximum';
     pub const INVALID_DURATION: felt252 = 'Invalid lock duration';
@@ -47,6 +47,12 @@ pub mod StakingErrors {
     pub const STAKE_LOCKED: felt252 = 'Stake still locked';
     pub const STAKE_NOT_ACTIVE: felt252 = 'Stake is not active';
     pub const NO_REWARDS: felt252 = 'No rewards to claim';
+    pub const REWARDS_NOT_CLAIMABLE: felt252 = 'Rewards not yet claimable';
+    pub const CONTRACT_PAUSED: felt252 = 'Contract is paused';
+    pub const UNAUTHORIZED: felt252 = 'Unauthorized';
+    pub const EMERGENCY_MODE_ACTIVE: felt252 = 'Emergency mode active';
+    pub const TOKEN_NOT_ACTIVE: felt252 = 'Token not active';
+    pub const INSUFFICIENT_LOCKED_FUNDS: felt252 = 'Insufficient locked funds';
     pub const INVALID_APY: felt252 = 'Invalid APY value';
     pub const ZERO_ADDRESS: felt252 = 'Zero address not allowed';
     pub const INSUFFICIENT_REWARDS: felt252 = 'Insufficient reward balance';

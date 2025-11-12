@@ -17,13 +17,15 @@ pub trait ISyncStaking<TContractState> {
     );
     fn toggle_pool(ref self: TContractState, token_symbol: felt252);
     fn get_pool(self: @TContractState, token_symbol: felt252) -> StakingPool;
-    fn get_all_pools(self: @TContractState) -> Array<felt252>;
+    fn get_all_pools(self: @TContractState) -> Array<StakingPool>;
+
 
     // Staking operations
     fn stake(ref self: TContractState, token_symbol: felt252, amount: u256, lock_duration: u64);
     fn unstake(ref self: TContractState, token_symbol: felt252, stake_id: u64);
     fn claim_rewards(ref self: TContractState, token_symbol: felt252, stake_id: u64);
     fn emergency_unstake(ref self: TContractState, token_symbol: felt252, stake_id: u64);
+
 
     // View functions
     fn calculate_rewards(
@@ -39,9 +41,34 @@ pub trait ISyncStaking<TContractState> {
         self: @TContractState, user: ContractAddress, token_symbol: felt252,
     ) -> u64;
 
+
     // Admin functions
     fn pause(ref self: TContractState);
     fn unpause(ref self: TContractState);
+
+    // Fiat Staking
+    fn record_fiat_stake(
+        ref self: TContractState, user: ContractAddress, currency: felt252, amount: u256, lock_duration: u64, stake_id: felt252
+    );
+    fn record_fiat_unstake(ref self: TContractState, user: ContractAddress, currency: felt252, stake_id: felt252);
+    fn record_fiat_reward_claim(ref self: TContractState, user: ContractAddress, currency: felt252, stake_id: felt252, rewards: u256);
+
+    // Admin
+    fn update_balance_merkle_root(ref self: TContractState, merkle_root: felt252);
+    fn create_reserve_snapshot(ref self: TContractState, currency: felt252, balance: u256, ipfs_hash: felt252);
+
+    // View
+    fn get_version(self: @TContractState) -> felt252;
+}
+
+#[derive(Copy, Drop, Serde, starknet::Store)]
+pub struct FiatStake {
+    pub user: ContractAddress,
+    pub currency: felt252,
+    pub amount: u256,
+    pub staked_at: u64,
+    pub lock_duration: u64,
+    pub is_active: bool,
 }
 
 

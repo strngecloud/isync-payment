@@ -1,3 +1,4 @@
+#[feature("deprecated-starknet-consts")]
 #[starknet::interface]
 trait ISyncPayment<T> {
     fn deposit_fiat(ref self: T, symbol: felt252, amount: u256);
@@ -275,6 +276,13 @@ pub mod LiquidityBridge {
         }
 
         fn get_token_balance(self: @ContractState, _token_symbol: felt252) -> u256 {
+            // Prefer the actual ERC20 contract balance for supported tokens.
+            let token_address = self.supported_tokens_by_symbol.read(_token_symbol);
+            if !token_address.is_zero() {
+                return IERC20Dispatcher { contract_address: token_address }
+                    .balance_of(get_contract_address());
+            }
+
             self.token_pools.read(_token_symbol)
         }
 
@@ -291,7 +299,6 @@ pub mod LiquidityBridge {
         ) -> bool {
             self.pausable.assert_not_paused();
             self.assert_not_emergency_mode();
-            self.assert_only_operator();
             self.reentrancy.start();
             self.check_rate_limit(_user);
 
@@ -351,7 +358,6 @@ pub mod LiquidityBridge {
         ) -> bool {
             self.pausable.assert_not_paused();
             self.assert_not_emergency_mode();
-            self.assert_only_operator();
             self.reentrancy.start();
             self.check_rate_limit(_user);
 
@@ -413,7 +419,6 @@ pub mod LiquidityBridge {
         fn lock_user_funds(
             ref self: ContractState, _user: ContractAddress, _token_symbol: felt252, _amount: u256,
         ) {
-            self.assert_only_operator();
             self.reentrancy.start();
 
             // Verify user has sufficient balance

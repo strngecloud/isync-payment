@@ -50,6 +50,9 @@ command: deploy
 contract_address: 0x079d34f36f135f787af3a0fc2556613b22f1bd4da15378ccf71b5dbb1cae5022
 transaction_hash: 0x003c5ff422e9c63e56eb973bb4a7bfa94c1fb05e940e4246818cbbb25f18f702
 
+
+
+
 # Declare Sync Token
 sncast declare --contract-name SyncToken --url https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/VFVA--IYkSjn28CaMokBNYvFo5fZOw2n --package isyncpayment
 
@@ -63,3 +66,20 @@ sncast deploy --class-hash 0x029ec83455b6774b26be742f1a2efd12132a4a4fb51d2a39a0a
 ## command: deploy
 contract_address: 0x06ab048153cdf6ee3ab9328fa0b8d16c09670581a5a446749facfd229362bf0e
 transaction_hash: 0x074dbdda17b04b2b04781966758ed1dff60f738e214b27721ed388ac3dd6c6de
+
+
+
+
+# Declare Sync Staker
+sncast declare --contract-name SyncStaking --url https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/VFVA--IYkSjn28CaMokBNYvFo5fZOw2n --package isyncpayment
+
+## command: declare
+class_hash: 0x02006bcf684c595efb1d05fa8266a309b8ba97e65f60afb989e104528bec0e91
+transaction_hash: 0x049231fa4afdcf7e278352a32eb012cd083f5b1c47e5f6654d72cd860c249773
+
+# Deploy Sync Token
+sncast deploy --class-hash 0x02b6b1c7c27fe84e418e658d48eeef87aee2f76640e11a56c37f8082009131c8 --url https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/VFVA--IYkSjn28CaMokBNYvFo5fZOw2n --constructor-calldata 0x4c73687f23639fdfd8d7d71ea7fccd62866351b0eff5efea14148c7b6ee5b27 0x079d34f36f135f787af3a0fc2556613b22f1bd4da15378ccf71b5dbb1cae5022 0x04e6a49ed6a43811b443778f129d632a752c633f6e1535c2fd15aa887263e8a9 0x4c73687f23639fdfd8d7d71ea7fccd62866351b0eff5efea14148c7b6ee5b27 1000
+
+## command: deploy
+contract_address: 0x038d3c8ce3b47e39b48458427048634f1207bab0275cb969cbc3363f8b2a922b
+transaction_hash: 0x02ce9dbc0736a9de844a2204c325d1cbee341d5058511ade6fad0b67e045f748

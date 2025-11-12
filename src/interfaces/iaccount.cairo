@@ -1,5 +1,4 @@
 use starknet::ContractAddress;
-use super::istaking::StakePosition;
 
 #[starknet::interface]
 pub trait IAccount<T> {

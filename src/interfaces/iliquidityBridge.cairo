@@ -37,6 +37,7 @@ pub trait ILiquidityBridge<T> {
         _token_amount: u256,
     ) -> bool;
     fn set_fee_bps(ref self: T, fee_bps: u16);
+    fn set_operator(ref self: T, operator: ContractAddress, is_authorized: bool);
 
     fn get_fiat_account_id(self: @T, _user: ContractAddress) -> felt252;
     fn get_token_balance(self: @T, _token_symbol: felt252) -> u256;
@@ -46,14 +47,13 @@ pub trait ILiquidityBridge<T> {
     ) -> bool;
     fn get_token_amount_in_usd(self: @T, token: ContractAddress, token_amount: u256) -> u256;
     fn get_fee_bps(self: @T) -> u16;
-    fn update_pragma_oracle_address(ref self: T, new_address: ContractAddress);
-    fn update_token_status(ref self: T, symbol: felt252, is_active: bool);
-    fn set_operator(ref self: T, operator: ContractAddress, is_authorized: bool);
     fn get_supported_tokens_by_symbol(self: @T, _symbol: felt252) -> ContractAddress;
     fn get_token_info(self: @T, token_address: ContractAddress) -> TokenInfo;
     fn get_all_supported_tokens(self: @T) -> Array<ContractAddress>;
     fn get_all_token_pools(self: @T) -> Array<felt252>;
     fn get_locked_funds(self: @T, user: ContractAddress, token_symbol: felt252) -> u256;
+    fn update_token_status(ref self: T, symbol: felt252, is_active: bool);
+    fn update_pragma_oracle_address(ref self: T, new_address: ContractAddress);
     fn remove_supported_token(ref self: T, symbol: felt252);
 }
 

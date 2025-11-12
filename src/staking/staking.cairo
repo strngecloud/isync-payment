@@ -1,13 +1,14 @@
 #[starknet::contract]
 pub mod SyncStaking {
-    use crate::events::stakingEvents::RewardsDeposited;
-use crate::events::stakingEvents::EmergencyWithdrawal;
-use crate::events::stakingEvents::RewardsClaimed;
-use crate::events::stakingEvents::PoolUpdated;
-use crate::events::stakingEvents::Unstaked;
-use crate::events::stakingEvents::Staked;
-use crate::events::stakingEvents::PoolCreated;
-use core::num::traits::Zero;
+use crate::events::stakingEvents::RewardsDeposited;
+    use crate::events::stakingEvents::EmergencyWithdrawal;
+    use crate::events::stakingEvents::RewardsClaimed;
+    use crate::events::stakingEvents::PoolUpdated;
+    use crate::events::stakingEvents::Unstaked;
+    use crate::events::stakingEvents::Staked;
+    use crate::events::stakingEvents::PoolCreated;
+    use crate::events::stakingEvents::{FiatStakeRecorded, FiatUnstakeRecorded, FiatRewardClaimRecorded, BalanceMerkleRootUpdated, ReserveSnapshotCreated};
+    use core::num::traits::Zero;
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::security::pausable::PausableComponent;
     use openzeppelin::security::reentrancyguard::ReentrancyGuardComponent;
@@ -19,7 +20,7 @@ use core::num::traits::Zero;
         StoragePointerWriteAccess,
     };
     use starknet::{ClassHash, ContractAddress, get_block_timestamp, get_caller_address};
-    use crate::interfaces::istaking::{ISyncStaking, StakePosition, StakingPool};
+    use crate::interfaces::istaking::{ISyncStaking, StakePosition, StakingPool, FiatStake};
     use crate::errors::StakingErrors;
 
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
@@ -78,6 +79,11 @@ use core::num::traits::Zero;
         reward_treasury: ContractAddress,
         // Emergency withdrawal fee (basis points)
         emergency_withdrawal_fee_bps: u16,
+        // Fiat staking
+        fiat_stakes: Map<(ContractAddress, felt252), FiatStake>, // (user, stake_id) => FiatStake
+        balance_merkle_root: felt252, // Merkle root for off-chain balances
+        // Versioning
+        version: felt252,
     }
 
     #[event]
@@ -98,6 +104,11 @@ use core::num::traits::Zero;
         RewardsClaimed: RewardsClaimed,
         EmergencyWithdrawal: EmergencyWithdrawal,
         RewardsDeposited: RewardsDeposited,
+        FiatStakeRecorded: FiatStakeRecorded,
+        FiatUnstakeRecorded: FiatUnstakeRecorded,
+        FiatRewardClaimRecorded: FiatRewardClaimRecorded,
+        BalanceMerkleRootUpdated: BalanceMerkleRootUpdated,
+        ReserveSnapshotCreated: ReserveSnapshotCreated,
     }
 
     #[constructor]
@@ -119,6 +130,7 @@ use core::num::traits::Zero;
         self.reward_treasury.write(reward_treasury);
         self.emergency_withdrawal_fee_bps.write(emergency_withdrawal_fee_bps);
         self.supported_tokens_count.write(0_u8);
+        self.version.write('1.0.0');
     }
 
     #[abi(embed_v0)]
@@ -444,7 +456,7 @@ use core::num::traits::Zero;
             assert(bonus_apy_bps <= 5000, StakingErrors::INVALID_APY);
 
             let mut pool = self.staking_pools.read(token_symbol);
-            assert(pool.is_active, StakingErrors::POOL_NOT_FOUND);
+            assert(pool.is_active, StakingErrors::POOL_DOES_NOT_EXIST);
 
             pool.base_apy_bps = base_apy_bps;
             pool.bonus_apy_bps = bonus_apy_bps;
@@ -463,14 +475,15 @@ use core::num::traits::Zero;
         }
 
         /// Get all supported tokens
-        fn get_all_pools(self: @ContractState) -> Array<felt252> {
-            let mut result: Array<felt252> = ArrayTrait::new();
+        fn get_all_pools(self: @ContractState) -> Array<StakingPool> {
+            let mut result: Array<StakingPool> = ArrayTrait::new();
             let count = self.supported_tokens_count.read();
 
             let mut i: u8 = 0;
             while i != count {
                 let token_symbol = self.supported_tokens_list.read(i);
-                result.append(token_symbol);
+                let pool = self.staking_pools.read(token_symbol);
+                result.append(pool);
                 i += 1;
             }
 
@@ -487,6 +500,57 @@ use core::num::traits::Zero;
         fn unpause(ref self: ContractState) {
             self.ownable.assert_only_owner();
             self.pausable.unpause();
+        }
+
+        // Fiat Staking
+        fn record_fiat_stake(
+            ref self: ContractState, 
+            user: ContractAddress, 
+            currency: felt252, 
+            amount: u256, 
+            lock_duration: u64, 
+            stake_id: felt252
+        ) {
+            self.ownable.assert_only_owner();
+            let new_stake = FiatStake {
+                user,
+                currency,
+                amount,
+                staked_at: get_block_timestamp(),
+                lock_duration,
+                is_active: true
+            };
+            self.fiat_stakes.write((user, stake_id), new_stake);
+            self.emit(FiatStakeRecorded { currency, amount, lock_duration, stake_id });
+        }
+
+        fn record_fiat_unstake(ref self: ContractState, user: ContractAddress, currency: felt252, stake_id: felt252) {
+            self.ownable.assert_only_owner();
+            let mut stake = self.fiat_stakes.read((user, stake_id));
+            stake.is_active = false;
+            self.fiat_stakes.write((user, stake_id), stake);
+            self.emit(FiatUnstakeRecorded { user, currency, stake_id });
+        }
+
+        fn record_fiat_reward_claim(ref self: ContractState, user: ContractAddress, currency: felt252, stake_id: felt252, rewards: u256) {
+            self.ownable.assert_only_owner();
+            self.emit(FiatRewardClaimRecorded { user, currency, stake_id, rewards });
+        }
+
+        // Admin
+        fn update_balance_merkle_root(ref self: ContractState, merkle_root: felt252) {
+            self.ownable.assert_only_owner();
+            self.balance_merkle_root.write(merkle_root);
+            self.emit(BalanceMerkleRootUpdated { merkle_root });
+        }
+
+        fn create_reserve_snapshot(ref self: ContractState, currency: felt252, balance: u256, ipfs_hash: felt252) {
+            self.ownable.assert_only_owner();
+            self.emit(ReserveSnapshotCreated { currency, balance, ipfs_hash });
+        }
+
+        fn get_version(self: @ContractState) -> felt252 {
+            self.version.read()
         }
     }
 

@@ -85,8 +85,7 @@ pub fn deploy_bridge(
     let owner = owner();
     let treasury = random_user();
     let fee_bps = 200_u16;
-    let pragma_address_felt: felt252 = 1.into();
-    let pragma_address: ContractAddress = pragma_address_felt.try_into().unwrap();
+    let pragma_address = 0x36031daa264c24520b11d93af622c848b2499b66b41d611bac95e13cfca131a;
 
     let mut constructor_calldata = array![
         owner.into(), treasury.into(), fee_bps.into(), pragma_address.into(),
