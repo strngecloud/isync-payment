@@ -168,7 +168,11 @@ pub mod Account {
                 .swap_token_to_fiat(
                     get_contract_address(), swap_order_id, fiat_symbol, token_symbol, token_amount,
                 )
-        }
+            }
+            
+            fn approve(ref self: ContractState, spender: ContractAddress, amount: u256) {
+                // const erc20_dispather = self.
+            }
 
         // Staking Functions
         fn stake_tokens(
@@ -186,13 +190,14 @@ pub mod Account {
             token.approve(staking, amount);
 
             // Execute stake
+            let user: ContractAddress = get_contract_address();
             let staking_dispatcher = ISyncStakingDispatcher { contract_address: staking };
-            staking_dispatcher.stake(token_symbol, amount, lock_duration);
+            staking_dispatcher.stake(user, token_symbol, amount, lock_duration);
 
             self
                 .emit(
                     StakingExecuted {
-                        user: get_contract_address(), token_symbol, amount, lock_duration,
+                        user, token_symbol, amount, lock_duration,
                     },
                 );
 
@@ -205,7 +210,7 @@ pub mod Account {
             assert(!staking.is_zero(), 'Staking contract not set');
 
             let staking_dispatcher = ISyncStakingDispatcher { contract_address: staking };
-            staking_dispatcher.unstake(token_symbol, stake_id);
+            staking_dispatcher.unstake(get_contract_address(), token_symbol, stake_id);
 
             true
         }
@@ -218,7 +223,7 @@ pub mod Account {
             assert(!staking.is_zero(), 'Staking contract not set');
 
             let staking_dispatcher = ISyncStakingDispatcher { contract_address: staking };
-            staking_dispatcher.claim_rewards(token_symbol, stake_id);
+            staking_dispatcher.claim_rewards(get_contract_address(), token_symbol, stake_id);
 
             true
         }
@@ -231,7 +236,7 @@ pub mod Account {
             assert(!staking.is_zero(), 'Staking contract not set');
 
             let staking_dispatcher = ISyncStakingDispatcher { contract_address: staking };
-            staking_dispatcher.emergency_unstake(token_symbol, stake_id);
+            staking_dispatcher.emergency_unstake(get_contract_address(), token_symbol, stake_id);
 
             true
         }
@@ -303,11 +308,13 @@ pub mod Account {
             let staking_dispatcher = ISyncStakingDispatcher { contract_address: staking };
             staking_dispatcher.calculate_rewards(get_contract_address(), token_symbol, stake_id)
         }
+
     }
 
     #[generate_trait]
     impl InternalImpl of InternalTrait {
         fn execute_auto_stake(ref self: ContractState, token_symbol: felt252, amount: u256) {
+            let user: ContractAddress = get_contract_address();
             let duration = self.auto_stake_duration.read(token_symbol);
             let staking = self.staking_contract.read();
 
@@ -318,12 +325,12 @@ pub mod Account {
                     token.approve(staking, amount);
 
                     let staking_dispatcher = ISyncStakingDispatcher { contract_address: staking };
-                    staking_dispatcher.stake(token_symbol, amount, duration);
+                    staking_dispatcher.stake(user, token_symbol, amount, duration);
 
                     self
                         .emit(
                             StakingExecuted {
-                                user: get_contract_address(),
+                                user,
                                 token_symbol,
                                 amount,
                                 lock_duration: duration,

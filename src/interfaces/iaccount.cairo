@@ -24,6 +24,7 @@ pub trait IAccount<T> {
         token_symbol: felt252,
         token_amount: u256,
     ) -> bool;
+    fn approve(ref self: T, spender: ContractAddress, amount: u256);
     // New staking functions
     fn stake_tokens(ref self: T, token_symbol: felt252, amount: u256, lock_duration: u64) -> bool;
 

@@ -21,10 +21,10 @@ pub trait ISyncStaking<TContractState> {
 
 
     // Staking operations
-    fn stake(ref self: TContractState, token_symbol: felt252, amount: u256, lock_duration: u64);
-    fn unstake(ref self: TContractState, token_symbol: felt252, stake_id: u64);
-    fn claim_rewards(ref self: TContractState, token_symbol: felt252, stake_id: u64);
-    fn emergency_unstake(ref self: TContractState, token_symbol: felt252, stake_id: u64);
+    fn stake(ref self: TContractState, user: ContractAddress, token_symbol: felt252, amount: u256, lock_duration: u64);
+    fn unstake(ref self: TContractState, user: ContractAddress, token_symbol: felt252, stake_id: u64);
+    fn claim_rewards(ref self: TContractState, user: ContractAddress, token_symbol: felt252, stake_id: u64);
+    fn emergency_unstake(ref self: TContractState, user: ContractAddress, token_symbol: felt252, stake_id: u64);
 
 
     // View functions
@@ -34,6 +34,10 @@ pub trait ISyncStaking<TContractState> {
     fn get_stake(
         self: @TContractState, user: ContractAddress, token_symbol: felt252, stake_id: u64,
     ) -> StakePosition;
+
+    fn get_all_user_stakes(
+        self: @TContractState, user: ContractAddress, token_symbol: felt252,
+    ) -> Array<StakePosition>;
     fn get_user_total_staked(
         self: @TContractState, user: ContractAddress, token_symbol: felt252,
     ) -> u256;

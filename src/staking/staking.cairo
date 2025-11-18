@@ -1,5 +1,6 @@
 #[starknet::contract]
 pub mod SyncStaking {
+use starknet::get_contract_address;
 use crate::events::stakingEvents::RewardsDeposited;
     use crate::events::stakingEvents::EmergencyWithdrawal;
     use crate::events::stakingEvents::RewardsClaimed;
@@ -181,11 +182,10 @@ use crate::events::stakingEvents::RewardsDeposited;
         }
 
         /// Stake tokens with a lock period
-        fn stake(ref self: ContractState, token_symbol: felt252, amount: u256, lock_duration: u64) {
+        fn stake(ref self: ContractState, user: ContractAddress, token_symbol: felt252, amount: u256, lock_duration: u64) {
             self.pausable.assert_not_paused();
             self.reentrancy.start();
 
-            let caller = get_caller_address();
             let mut pool = self.staking_pools.read(token_symbol);
 
             // Validations
@@ -201,15 +201,15 @@ use crate::events::stakingEvents::RewardsDeposited;
 
             // Transfer tokens from user to contract
             let token = IERC20Dispatcher { contract_address: pool.token_address };
-            token.transfer_from(caller, starknet::get_contract_address(), amount);
+            token.transfer_from(user, get_contract_address(), amount);
 
             // Create stake position
             let current_time = get_block_timestamp();
-            let stake_id = self.user_stake_count.read((caller, token_symbol));
+            let stake_id = self.user_stake_count.read((user, token_symbol));
 
             let stake = StakePosition {
                 stake_id,
-                user: caller,
+                user,
                 token_symbol,
                 amount,
                 staked_at: current_time,
@@ -221,8 +221,8 @@ use crate::events::stakingEvents::RewardsDeposited;
                 effective_apy_bps,
             };
 
-            self.user_stakes.write((caller, token_symbol, stake_id), stake);
-            self.user_stake_count.write((caller, token_symbol), stake_id + 1);
+            self.user_stakes.write((user, token_symbol, stake_id), stake);
+            self.user_stake_count.write((user, token_symbol), stake_id + 1);
 
             // Update pool stats
             pool.total_staked += amount;
@@ -233,13 +233,13 @@ use crate::events::stakingEvents::RewardsDeposited;
             self.staking_pools.write(token_symbol, pool);
 
             // Update user total
-            let user_total = self.user_total_staked.read((caller, token_symbol));
-            self.user_total_staked.write((caller, token_symbol), user_total + amount);
+            let user_total = self.user_total_staked.read((user, token_symbol));
+            self.user_total_staked.write((user, token_symbol), user_total + amount);
 
             self
                 .emit(
                     Staked {
-                        user: caller,
+                        user,
                         token_symbol,
                         stake_id,
                         amount,
@@ -253,12 +253,11 @@ use crate::events::stakingEvents::RewardsDeposited;
         }
 
         /// Unstake tokens after lock period
-        fn unstake(ref self: ContractState, token_symbol: felt252, stake_id: u64) {
+        fn unstake(ref self: ContractState, user: ContractAddress, token_symbol: felt252, stake_id: u64) {
             self.pausable.assert_not_paused();
             self.reentrancy.start();
 
-            let caller = get_caller_address();
-            let mut stake = self.user_stakes.read((caller, token_symbol, stake_id));
+            let mut stake = self.user_stakes.read((user, token_symbol, stake_id));
 
             // Validations
             assert(stake.is_active, StakingErrors::STAKE_NOT_ACTIVE);
@@ -270,7 +269,7 @@ use crate::events::stakingEvents::RewardsDeposited;
             // Update stake
             stake.is_active = false;
             stake.accumulated_rewards += rewards;
-            self.user_stakes.write((caller, token_symbol, stake_id), stake);
+            self.user_stakes.write((user, token_symbol, stake_id), stake);
 
             // Update pool stats
             let mut pool = self.staking_pools.read(token_symbol);
@@ -279,8 +278,8 @@ use crate::events::stakingEvents::RewardsDeposited;
             self.staking_pools.write(token_symbol, pool);
 
             // Update user total
-            let user_total = self.user_total_staked.read((caller, token_symbol));
-            self.user_total_staked.write((caller, token_symbol), user_total - stake.amount);
+            let user_total = self.user_total_staked.read((user, token_symbol));
+            self.user_total_staked.write((user, token_symbol), user_total - stake.amount);
 
             // Transfer principal + rewards
             let token = IERC20Dispatcher { contract_address: pool.token_address };
@@ -300,7 +299,7 @@ use crate::events::stakingEvents::RewardsDeposited;
                     );
             }
 
-            token.transfer(caller, total_amount);
+            token.transfer(user, total_amount);
 
             // Update tracking
             self
@@ -310,15 +309,15 @@ use crate::events::stakingEvents::RewardsDeposited;
                     self.total_rewards_distributed.read(token_symbol) + stake.accumulated_rewards,
                 );
 
-            let user_claimed = self.user_claimed_rewards.read((caller, token_symbol));
+            let user_claimed = self.user_claimed_rewards.read((user, token_symbol));
             self
                 .user_claimed_rewards
-                .write((caller, token_symbol), user_claimed + stake.accumulated_rewards);
+                .write((user, token_symbol), user_claimed + stake.accumulated_rewards);
 
             self
                 .emit(
                     Unstaked {
-                        user: caller,
+                        user,
                         token_symbol,
                         stake_id,
                         amount: stake.amount,
@@ -330,12 +329,11 @@ use crate::events::stakingEvents::RewardsDeposited;
         }
 
         /// Claim accumulated rewards without unstaking
-        fn claim_rewards(ref self: ContractState, token_symbol: felt252, stake_id: u64) {
+        fn claim_rewards(ref self: ContractState, user: ContractAddress, token_symbol: felt252, stake_id: u64) {
             self.pausable.assert_not_paused();
             self.reentrancy.start();
 
-            let caller = get_caller_address();
-            let mut stake = self.user_stakes.read((caller, token_symbol, stake_id));
+            let mut stake = self.user_stakes.read((user, token_symbol, stake_id));
 
             assert(stake.is_active, StakingErrors::STAKE_NOT_ACTIVE);
 
@@ -345,7 +343,7 @@ use crate::events::stakingEvents::RewardsDeposited;
             // Update stake
             stake.last_reward_claim = get_block_timestamp();
             stake.accumulated_rewards += rewards;
-            self.user_stakes.write((caller, token_symbol, stake_id), stake);
+            self.user_stakes.write((user, token_symbol, stake_id), stake);
 
             // Transfer rewards
             let pool = self.staking_pools.read(token_symbol);
@@ -356,28 +354,27 @@ use crate::events::stakingEvents::RewardsDeposited;
                 .transfer_from(
                     self.reward_treasury.read(), starknet::get_contract_address(), rewards,
                 );
-            token.transfer(caller, rewards);
+            token.transfer(user, rewards);
 
             // Update tracking
             self
                 .total_rewards_distributed
                 .write(token_symbol, self.total_rewards_distributed.read(token_symbol) + rewards);
 
-            let user_claimed = self.user_claimed_rewards.read((caller, token_symbol));
-            self.user_claimed_rewards.write((caller, token_symbol), user_claimed + rewards);
+            let user_claimed = self.user_claimed_rewards.read((user, token_symbol));
+            self.user_claimed_rewards.write((user, token_symbol), user_claimed + rewards);
 
-            self.emit(RewardsClaimed { user: caller, token_symbol, amount: rewards });
+            self.emit(RewardsClaimed { user, token_symbol, amount: rewards });
 
             self.reentrancy.end();
         }
 
         /// Emergency unstake with penalty
-        fn emergency_unstake(ref self: ContractState, token_symbol: felt252, stake_id: u64) {
+        fn emergency_unstake(ref self: ContractState, user: ContractAddress, token_symbol: felt252, stake_id: u64) {
             self.pausable.assert_not_paused();
             self.reentrancy.start();
 
-            let caller = get_caller_address();
-            let mut stake = self.user_stakes.read((caller, token_symbol, stake_id));
+            let mut stake = self.user_stakes.read((user, token_symbol, stake_id));
 
             assert(stake.is_active, StakingErrors::STAKE_NOT_ACTIVE);
 
@@ -388,7 +385,7 @@ use crate::events::stakingEvents::RewardsDeposited;
 
             // Update stake
             stake.is_active = false;
-            self.user_stakes.write((caller, token_symbol, stake_id), stake);
+            self.user_stakes.write((user, token_symbol, stake_id), stake);
 
             // Update pool stats
             let mut pool = self.staking_pools.read(token_symbol);
@@ -397,18 +394,18 @@ use crate::events::stakingEvents::RewardsDeposited;
             self.staking_pools.write(token_symbol, pool);
 
             // Update user total
-            let user_total = self.user_total_staked.read((caller, token_symbol));
-            self.user_total_staked.write((caller, token_symbol), user_total - stake.amount);
+            let user_total = self.user_total_staked.read((user, token_symbol));
+            self.user_total_staked.write((user, token_symbol), user_total - stake.amount);
 
             // Transfer tokens
             let token = IERC20Dispatcher { contract_address: pool.token_address };
-            token.transfer(caller, amount_after_penalty);
+            token.transfer(user, amount_after_penalty);
             token.transfer(self.reward_treasury.read(), penalty); // Penalty goes to treasury
 
             self
                 .emit(
                     EmergencyWithdrawal {
-                        user: caller, token_symbol, stake_id, amount: stake.amount, penalty,
+                        user, token_symbol, stake_id, amount: stake.amount, penalty,
                     },
                 );
 
@@ -430,6 +427,17 @@ use crate::events::stakingEvents::RewardsDeposited;
             self: @ContractState, user: ContractAddress, token_symbol: felt252, stake_id: u64,
         ) -> StakePosition {
             self.user_stakes.read((user, token_symbol, stake_id))
+        }
+
+        fn get_all_user_stakes(
+            self: @ContractState, user: ContractAddress, token_symbol: felt252,
+        ) -> Array<StakePosition> {
+            let mut result: Array<StakePosition> = ArrayTrait::new();
+            let count = self.user_stake_count.read((user, token_symbol));
+            for i in 0..count {
+                result.append(self.user_stakes.read((user, token_symbol, i)));
+            }
+            result
         }
 
         fn get_pool(self: @ContractState, token_symbol: felt252) -> StakingPool {
