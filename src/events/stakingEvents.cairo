@@ -63,21 +63,21 @@ pub struct FiatStakeRecorded {
     pub currency: felt252,
     pub amount: u256,
     pub lock_duration: u64,
-    pub stake_id: felt252,
+    pub stake_id: u64,
 }
 
 #[derive(Drop, starknet::Event)]
 pub struct FiatUnstakeRecorded {
     pub user: ContractAddress,
     pub currency: felt252,
-    pub stake_id: felt252,
+    pub stake_id: u64,
 }
 
 #[derive(Drop, starknet::Event)]
 pub struct FiatRewardClaimRecorded {
     pub user: ContractAddress,
     pub currency: felt252,
-    pub stake_id: felt252,
+    pub stake_id: u64,
     pub rewards: u256,
 }
 

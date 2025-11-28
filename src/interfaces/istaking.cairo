@@ -35,9 +35,15 @@ pub trait ISyncStaking<TContractState> {
         self: @TContractState, user: ContractAddress, token_symbol: felt252, stake_id: u64,
     ) -> StakePosition;
 
-    fn get_all_user_stakes(
+    fn get_all_user_stakes_by_symbol(
         self: @TContractState, user: ContractAddress, token_symbol: felt252,
     ) -> Array<StakePosition>;
+    fn get_all_user_stakes(
+        self: @TContractState, user: ContractAddress
+    ) -> Array<StakePosition>;
+    fn get_all_user_fiat_stakes(
+        self: @TContractState, user: ContractAddress, currency: felt252,
+    ) -> Array<FiatStake>;
     fn get_user_total_staked(
         self: @TContractState, user: ContractAddress, token_symbol: felt252,
     ) -> u256;
@@ -52,10 +58,10 @@ pub trait ISyncStaking<TContractState> {
 
     // Fiat Staking
     fn record_fiat_stake(
-        ref self: TContractState, user: ContractAddress, currency: felt252, amount: u256, lock_duration: u64, stake_id: felt252
+        ref self: TContractState, user: ContractAddress, currency: felt252, amount: u256, lock_duration: u64, stake_id: u64
     );
-    fn record_fiat_unstake(ref self: TContractState, user: ContractAddress, currency: felt252, stake_id: felt252);
-    fn record_fiat_reward_claim(ref self: TContractState, user: ContractAddress, currency: felt252, stake_id: felt252, rewards: u256);
+    fn record_fiat_unstake(ref self: TContractState, user: ContractAddress, currency: felt252, stake_id: u64);
+    fn record_fiat_reward_claim(ref self: TContractState, user: ContractAddress, currency: felt252, stake_id: u64, rewards: u256);
 
     // Admin
     fn update_balance_merkle_root(ref self: TContractState, merkle_root: felt252);

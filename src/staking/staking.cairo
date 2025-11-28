@@ -81,7 +81,8 @@ use crate::events::stakingEvents::RewardsDeposited;
         // Emergency withdrawal fee (basis points)
         emergency_withdrawal_fee_bps: u16,
         // Fiat staking
-        fiat_stakes: Map<(ContractAddress, felt252), FiatStake>, // (user, stake_id) => FiatStake
+user_fiat_stake_count: Map<(ContractAddress, felt252), u64>, // (user, token_symbol) => count        
+        fiat_stakes: Map<(ContractAddress, felt252, u64), FiatStake>, // (user, currency, stake_id) => FiatStake
         balance_merkle_root: felt252, // Merkle root for off-chain balances
         // Versioning
         version: felt252,
@@ -429,7 +430,7 @@ use crate::events::stakingEvents::RewardsDeposited;
             self.user_stakes.read((user, token_symbol, stake_id))
         }
 
-        fn get_all_user_stakes(
+        fn get_all_user_stakes_by_symbol(
             self: @ContractState, user: ContractAddress, token_symbol: felt252,
         ) -> Array<StakePosition> {
             let mut result: Array<StakePosition> = ArrayTrait::new();
@@ -437,6 +438,30 @@ use crate::events::stakingEvents::RewardsDeposited;
             for i in 0..count {
                 result.append(self.user_stakes.read((user, token_symbol, i)));
             }
+            result
+        }
+
+        fn get_all_user_stakes(
+            self: @ContractState, user: ContractAddress,
+        ) -> Array<StakePosition> {
+            let mut result: Array<StakePosition> = ArrayTrait::new();
+            let supported_tokens_count = self.supported_tokens_count.read();
+            
+            let mut token_idx = 0_u8;
+            while token_idx != supported_tokens_count {
+                
+                let token_symbol = self.supported_tokens_list.read(token_idx);
+                let stake_count = self.user_stake_count.read((user, token_symbol));
+                
+                let mut stake_idx = 0_u64;
+                while stake_idx != stake_count {
+                    result.append(self.user_stakes.read((user, token_symbol, stake_idx)));
+                    stake_idx += 1;
+                };
+                
+                token_idx += 1;
+            };
+            
             result
         }
 
@@ -517,7 +542,7 @@ use crate::events::stakingEvents::RewardsDeposited;
             currency: felt252, 
             amount: u256, 
             lock_duration: u64, 
-            stake_id: felt252
+            stake_id: u64
         ) {
             self.ownable.assert_only_owner();
             let new_stake = FiatStake {
@@ -528,21 +553,31 @@ use crate::events::stakingEvents::RewardsDeposited;
                 lock_duration,
                 is_active: true
             };
-            self.fiat_stakes.write((user, stake_id), new_stake);
+            // Convert felt252 stake_id to u64 for storage
+            self.fiat_stakes.write((user, currency, stake_id), new_stake);
             self.emit(FiatStakeRecorded { currency, amount, lock_duration, stake_id });
         }
 
-        fn record_fiat_unstake(ref self: ContractState, user: ContractAddress, currency: felt252, stake_id: felt252) {
+        fn record_fiat_unstake(ref self: ContractState, user: ContractAddress, currency: felt252, stake_id: u64) {
             self.ownable.assert_only_owner();
-            let mut stake = self.fiat_stakes.read((user, stake_id));
+            let mut stake = self.fiat_stakes.read((user, currency, stake_id));
             stake.is_active = false;
-            self.fiat_stakes.write((user, stake_id), stake);
+            self.fiat_stakes.write((user, currency, stake_id), stake);
             self.emit(FiatUnstakeRecorded { user, currency, stake_id });
         }
 
-        fn record_fiat_reward_claim(ref self: ContractState, user: ContractAddress, currency: felt252, stake_id: felt252, rewards: u256) {
+        fn record_fiat_reward_claim(ref self: ContractState, user: ContractAddress, currency: felt252, stake_id: u64, rewards: u256) {
             self.ownable.assert_only_owner();
             self.emit(FiatRewardClaimRecorded { user, currency, stake_id, rewards });
+        }
+
+        fn get_all_user_fiat_stakes(self: @ContractState, user: ContractAddress, currency: felt252) -> Array<FiatStake> {
+            let mut result: Array<FiatStake> = ArrayTrait::new();
+            let count = self.user_fiat_stake_count.read((user, currency));
+            for i in 0..count {
+                result.append(self.fiat_stakes.read((user, currency, i)));
+            }
+            result
         }
 
         // Admin
