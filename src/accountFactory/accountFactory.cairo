@@ -67,6 +67,7 @@ pub mod AccountFactory {
     #[abi(embed_v0)]
     impl AccountFactoryImpl of IAccountFactory<ContractState> {
         fn create_account(ref self: ContractState, public_key: felt252, user_unique_id: felt252) {
+            self.ownable.assert_only_owner();
             assert(self.accounts.read(user_unique_id).is_zero(), ACCOUNT_ALREADY_EXIST);
             assert(!public_key.is_zero(), 'Public key cannot be zero');
 

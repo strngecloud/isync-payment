@@ -18,6 +18,7 @@ pub mod errors;
 
 pub mod erc20 {
     pub mod erc20;
+    pub mod sNGN;
 }
 
 pub mod events {
