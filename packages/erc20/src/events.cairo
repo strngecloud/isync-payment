@@ -1,7 +1,6 @@
 //! Event definitions for the ERC20 package
 
 use starknet::ContractAddress;
-use starknet::Event;
 
 #[event]
 #[derive(Drop, starknet::Event)]

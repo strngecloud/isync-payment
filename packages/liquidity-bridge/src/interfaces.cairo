@@ -55,6 +55,7 @@ pub trait ILiquidityBridge<T> {
         fiat_symbol: felt252,
         token_symbol: felt252,
         token_amount: u256,
+        min_fiat_amount: u256,
     ) -> bool;
 
     // Withdrawal / escrow flows
@@ -108,10 +109,15 @@ pub trait ILiquidityBridge<T> {
     fn get_asset_price_median(self: @T, asset: DataType) -> (u128, u32);
     fn get_token_amount_in_usd(self: @T, token: ContractAddress, token_amount: u256) -> u256;
 
+    // Emergency / admin utilities
+    fn emergency_unlock_locked_funds(ref self: T, user: ContractAddress, token_symbol: felt252, amount: u256);
+
     // Fee & oracle config
     fn set_fee_bps(ref self: T, fee_bps: u16);
     fn get_fee_bps(self: @T) -> u16;
     fn update_pragma_oracle_address(ref self: T, new_address: ContractAddress);
+
+    fn set_slippage_tolerance(ref self: T, bps: u16) ;
 }
 
 // Data structures

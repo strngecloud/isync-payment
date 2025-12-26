@@ -41,8 +41,9 @@ Key contracts include:
 ### Prerequisites
 
 - Rust (for Scarb and Cairo tools)
-- Scarb package manager
-- StarkNet CLI tools (for deployment)
+- Scarb package manager (`curl -L https://github.com/software-mansion/scarb/releases/download/v2.6.5/scarb-v2.6.5-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C ~/.local/bin`)
+- StarkNet CLI tools (`cargo install sncast`)
+- jq (`sudo apt-get install jq`)
 
 ### Setup
 
@@ -126,18 +127,57 @@ isyncpayment/
 
 - **Audit Status**: Contracts should undergo security audits before mainnet deployment.
 - **Access Control**: Uses OpenZeppelin patterns for secure role management.
-- **Pausability**: Contracts include pause mechanisms for emergency stops.
 - **Upgradeability**: Designed with proxy patterns for future upgrades.
 
 ## Testing
 
 - **Unit Tests**: Test individual contract functions using Snforge.
 - **Integration Tests**: Deploy contracts to testnet and test end-to-end flows.
-- **Fork Testing**: Use forked mainnet state for realistic testing scenarios.
 
-### Running Tests
-
+## Development Dependencies
+Ensure all dependencies are installed:
 ```bash
+# Install jq
+sudo apt-get update && sudo apt-get install -y jq
+
+{{ ... }}
+cargo install sncast
+
+# Install scarb
+curl -L https://github.com/software-mansion/scarb/releases/download/v2.6.5/scarb-v2.6.5-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C ~/.local/bin
+```
+
+### Transaction Failures
+- Check your account balance: `starkli account fetch <ADDRESS> --rpc <RPC_URL>`
+- Verify your RPC URL in `.env`
+- Check gas prices and adjust if necessary
+
+## License
+
+[Your License Here]
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## Security
+
+For any security issues or concerns, please contact [security@example.com](mailto:security@example.com)
+
+## Acknowledgements
+
+- [StarkNet](https://starknet.io/)
+- [OpenZeppelin](https://openzeppelin.com/)
+- [Pragma](https://www.pragmaoracle.com/)
+
+---
+
+```
+
 # Run all tests
 snforge test
 

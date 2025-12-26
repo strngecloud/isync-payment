@@ -12,10 +12,12 @@ pub mod staking_errors {
     pub const DURATION_TOO_LONG: felt252 = 'Duration too long';
     pub const STAKE_NOT_FOUND: felt252 = 'Stake not found';
     pub const STAKE_NOT_ACTIVE: felt252 = 'Stake is not active';
-    pub const STAKE_NOT_UNLOCKED: felt252 = 'Stake is still locked';
+    pub const STAKE_NOT_UNLOCKED: felt252 = 'Stake not found';
+    pub const STAKE_LOCKED: felt252 = 'Stake is still locked';
     pub const NO_REWARDS: felt252 = 'No rewards to claim';
     pub const INVALID_APY: felt252 = 'Invalid APY value';
     pub const INSUFFICIENT_LIQUIDITY: felt252 = 'Insufficient liquidity in pool';
+    pub const INSUFFICIENT_REWARDS: felt252 = 'Insufficient rewards available';
     pub const REWARD_RATE_TOO_HIGH: felt252 = 'Reward rate too high';
     pub const UNAUTHORIZED: felt252 = 'Unauthorized';
     pub const ZERO_ADDRESS: felt252 = 'Zero address not allowed';
@@ -23,9 +25,8 @@ pub mod staking_errors {
     pub const REWARD_ALREADY_CLAIMED: felt252 = 'Reward already claimed';
     pub const EMERGENCY_WITHDRAWAL_ACTIVE: felt252 = 'Emergency withdrawal active';
     pub const EMERGENCY_WITHDRAWAL_NOT_ACTIVE: felt252 = 'Emergency withdrawal not active';
-    pub const EMERGENCY_WITHDRAWAL_NOT_AVAILABLE: felt252 = 'Emergency withdrawal not available';
-    pub const EMERGENCY_WITHDRAWAL_ALREADY_INITIATED: felt252 = 'Emergency withdrawal already initiated';
-    pub const EMERGENCY_WITHDRAWAL_NOT_INITIATED: felt252 = 'Emergency withdrawal not initiated';
-    pub const EMERGENCY_WITHDRAWAL_DELAY_NOT_PASSED: felt252 = 'Emergency withdrawal delay not passed';
-    pub const EMERGENCY_WITHDRAWAL_GRACE_PERIOD_PASSED: felt252 = 'Emergency withdrawal grace period passed';
+    pub const EMERGENCY_WITHDRAWAL_ALREADY_INITIATED: felt252 = 'Emergency withdrawal started';
+    pub const EMERGENCY_WITHDRAWAL_NOT_INITIATED: felt252 = 'Withdrawal not initiated';
+    pub const EMERGENCY_WITHDRAWAL_DELAY_NOT_PASSED: felt252 = 'Withdrawal delay not passed';
+    pub const EMERGENCY_WITHDRAWAL_GRACE_PERIOD_PASSED: felt252 = 'Grace period expired';
 }

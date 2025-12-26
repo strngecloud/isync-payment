@@ -2,3 +2,5 @@
 
 pub mod erc20;
 pub mod interfaces;
+pub mod errors;
+pub mod events;

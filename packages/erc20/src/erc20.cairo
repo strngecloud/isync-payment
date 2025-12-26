@@ -1,5 +1,5 @@
 #[starknet::contract]
-pub mod SyncToken {
+pub mod SyncERC20 {
     use openzeppelin::access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE};
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::security::pausable::PausableComponent;

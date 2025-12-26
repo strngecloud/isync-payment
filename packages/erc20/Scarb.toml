@@ -1,19 +1,20 @@
 [package]
-name = "sync_erc20"
+name = "erc20"
 version = "0.1.0"
 edition = "2024_07"
 description = "ERC20 token implementation for Sync Protocol"
 
 [dependencies]
-starknet = "2.11.4"
-openzeppelin = { version = "2.0.0", default-features = false }
+starknet = "2.15.0"
+openzeppelin = "2.0.0"
 
 [dev-dependencies]
 snforge_std = "0.43.0"
-assert_macros = "2.11.4"
+assert_macros = "2.15.0"
 
 [[target.starknet-contract]]
 sierra = true
+casm = true
 
 [scripts]
 test = "snforge test"

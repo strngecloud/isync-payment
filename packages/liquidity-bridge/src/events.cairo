@@ -144,6 +144,15 @@ pub struct FundsLocked {
 }
 
 #[derive(Drop, starknet::Event)]
+pub struct FundsUnlocked {
+    pub user: ContractAddress,
+    pub token_symbol: felt252,
+    pub amount: u256,
+    pub reason: felt252,
+    pub timestamp: u64,
+}
+
+#[derive(Drop, starknet::Event)]
 pub struct WithdrawalCompleted {
     pub name: felt252,
     pub user: ContractAddress,

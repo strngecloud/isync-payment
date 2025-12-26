@@ -3,7 +3,7 @@
 use starknet::ContractAddress;
 
 #[starknet::interface]
-pub trait ISyncToken<T> {
+pub trait IERC20<T> {
     // Standard ERC20 functions
     fn name(self: @T) -> ByteArray;
     fn symbol(self: @T) -> ByteArray;

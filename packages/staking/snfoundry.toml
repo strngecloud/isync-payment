@@ -1,0 +1,7 @@
+# Visit https://foundry-rs.github.io/starknet-foundry/appendix/snfoundry-toml.html
+# and https://foundry-rs.github.io/starknet-foundry/projects/configuration.html for more information
+
+[sncast.default]                                     
+accounts-file = "~/.starknet_accounts/starknet_open_zeppelin_accounts.json"                  
+account = "caxtonstone1"                                   
+url = "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/dA6zDOwFga2cKmD7Vs5xWcL76NAQYICe"
