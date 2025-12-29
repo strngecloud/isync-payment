@@ -856,18 +856,9 @@ pub mod LiquidityBridge {
             from_amount
         }
     }
-
-    // Internal trait for helper functions
-    #[generate_trait]
-    pub trait InternalTrait {
-        fn _get_token_info(self: @ContractState, token: ContractAddress) -> TokenInfo;
-        fn _get_swap(self: @ContractState, swap_id: u64) -> SwapInfo;
-        fn assert_only_operator(ref self: ContractState);
-        fn assert_not_emergency_mode(ref self: ContractState);
-        fn check_rate_limit(ref self: ContractState, user: ContractAddress);
-    }
-
+    
     // Implement the InternalTrait
+    #[generate_trait]
     impl InternalImpl of InternalTrait {
         fn _get_token_info(self: @ContractState, token: ContractAddress) -> TokenInfo {
             let info = self.tokens.read(token);

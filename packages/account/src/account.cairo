@@ -7,7 +7,7 @@ pub mod Account {
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::upgrades::UpgradeableComponent;
     use openzeppelin::upgrades::interface::IUpgradeable;
-    use sync_account::errors::account_errors::*;
+    use sync_account::errors::AccountErrors::*;
     use sync_account::events::{
         TokenAdded, BridgeSet, StakingSet
     };

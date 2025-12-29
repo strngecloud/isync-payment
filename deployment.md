@@ -83,3 +83,26 @@ sncast deploy --class-hash 0x06ec4726930d12bd414425696baf740b42d569e2e64425f8529
 ## command: deploy
 contract_address: 0x038d3c8ce3b47e39b48458427048634f1207bab0275cb969cbc3363f8b2a922b
 transaction_hash: 0x02ce9dbc0736a9de844a2204c325d1cbee341d5058511ade6fad0b67e045f748
+
+
+## command: deploy
+sncast deploy \
+  --class-hash 0x314b0967071462a7e17df73cb14083f88c5290c20d8570b201624ac5aed3fc6 \
+  --url https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/5QQMV6kqa3iDaH_EbNhTw \
+  --constructor-calldata \
+    0 0x53796e63546f6b656e 9 \
+    0 0x734e474e 4 \
+    2 \
+    1000000 0 \
+    0x0456e6d7184cd79e3f5cc63397a5540e8aeef7fd2f136136dfd40caf122cba88 \
+    0x4c73687f23639fdf8d7d71ea7fccd62866351b0eff5efea14148c7b6ee5b27 \
+    0x4c73687f23639fdf8d7d71ea7fccd62866351b0eff5efea14148c7b6ee5b27 \
+    0x4c73687f23639fdf8d7d71ea7fccd62866351b0eff5efea14148c7b6ee5b27
+Success: Deployment completed
+
+Contract Address: 0x06818412ea390662a9a2b37d62404c03fa328c3214ffea3691f153c845fd9e51
+Transaction Hash: 0x009437f880a8d80cabe4ea6ebbd567975d1c3aad233b4ad02a2fbb29f1a8c223
+
+To see deployment details, visit:
+contract: https://sepolia.starkscan.co/contract/0x06818412ea390662a9a2b37d62404c03fa328c3214ffea3691f153c845fd9e51
+transaction: https://sepolia.starkscan.co/tx/0x009437f880a8d80cabe4ea6ebbd567975d1c3aad233b4ad02a2fbb29f1a8c223

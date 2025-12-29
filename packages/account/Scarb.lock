@@ -140,12 +140,4 @@ version = "0.1.0"
 dependencies = [
  "openzeppelin",
  "snforge_std",
- "sync_core",
-]
-
-[[package]]
-name = "sync_core"
-version = "0.1.0"
-dependencies = [
- "openzeppelin",
 ]

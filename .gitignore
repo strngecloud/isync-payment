@@ -3,3 +3,7 @@ target
 snfoundry_trace/
 coverage/
 profile/
+deployment_logs/
+.env
+.env.example
+node_modules

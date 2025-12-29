@@ -3,16 +3,16 @@ pub mod SyncERC20 {
     use openzeppelin::access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE};
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::security::pausable::PausableComponent;
-    use openzeppelin::token::erc20::{ DefaultConfig, ERC20Component};
-    use openzeppelin::upgrades::interface::IUpgradeable;
+    use openzeppelin::token::erc20::{DefaultConfig, ERC20Component};
     use openzeppelin::upgrades::UpgradeableComponent;
+    use openzeppelin::upgrades::interface::IUpgradeable;
     use starknet::{ClassHash, ContractAddress, get_caller_address};
-    
+
     // Role definitions
     const PAUSER_ROLE: felt252 = selector!("PAUSER_ROLE");
     const MINTER_ROLE: felt252 = selector!("MINTER_ROLE");
     const UPGRADER_ROLE: felt252 = selector!("UPGRADER_ROLE");
-    
+
     component!(path: ERC20Component, storage: erc20, event: ERC20Event);
     component!(path: PausableComponent, storage: pausable, event: PausableEvent);
     component!(path: AccessControlComponent, storage: accesscontrol, event: AccessControlEvent);
@@ -25,7 +25,8 @@ pub mod SyncERC20 {
     #[abi(embed_v0)]
     impl PausableImpl = PausableComponent::PausableImpl<ContractState>;
     #[abi(embed_v0)]
-    impl AccessControlMixinImpl = AccessControlComponent::AccessControlMixinImpl<ContractState>;
+    impl AccessControlMixinImpl =
+        AccessControlComponent::AccessControlMixinImpl<ContractState>;
 
     // Internal
     impl ERC20InternalImpl = ERC20Component::InternalImpl<ContractState>;
@@ -67,7 +68,6 @@ pub mod SyncERC20 {
         ref self: ContractState,
         name: ByteArray,
         symbol: ByteArray,
-        decimals: u8,
         initial_supply: u256,
         recipient: ContractAddress,
         owner: ContractAddress,
@@ -76,7 +76,7 @@ pub mod SyncERC20 {
     ) {
         self.erc20.initializer(name, symbol);
         self.accesscontrol.initializer();
-        
+
         self.accesscontrol._grant_role(DEFAULT_ADMIN_ROLE, owner);
         self.accesscontrol._grant_role(PAUSER_ROLE, pauser);
         self.accesscontrol._grant_role(MINTER_ROLE, minter);
@@ -88,7 +88,7 @@ pub mod SyncERC20 {
         }
     }
 
-       impl ERC20HooksImpl of ERC20Component::ERC20HooksTrait<ContractState> {
+    impl ERC20HooksImpl of ERC20Component::ERC20HooksTrait<ContractState> {
         fn before_update(
             ref self: ERC20Component::ComponentState<ContractState>,
             from: ContractAddress,

@@ -4,4 +4,4 @@
 [sncast.default]                                     
 accounts-file = "~/.starknet_accounts/starknet_open_zeppelin_accounts.json"                  
 account = "caxtonstone1"                                   
-url = "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/dA6zDOwFga2cKmD7Vs5xWcL76NAQYICe"
+url = "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/5QQMV6kqa3iDaH_EbNhTw"

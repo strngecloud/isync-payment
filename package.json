@@ -1,0 +1,32 @@
+{
+  "name": "sync-payment",
+  "version": "1.0.0",
+  "description": "Sync Payment smart contracts deployment",
+  "main": "dist/scripts/deploy.js",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "ts-node scripts/deploy.ts",
+    "deploy:account": "ts-node scripts/deploy.ts account",
+    "deploy:account-factory": "ts-node scripts/deploy.ts account-factory",
+    "deploy:liquidity-bridge": "ts-node scripts/deploy.ts liquidity-bridge",
+    "deploy:sync-token": "ts-node scripts/deploy.ts sync-token",
+    "deploy:staking": "ts-node scripts/deploy.ts staking"
+  },
+  "keywords": [
+    "starknet",
+    "blockchain",
+    "deployment"
+  ],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.10.0",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "starknet": "^9.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
