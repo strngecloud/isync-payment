@@ -164,10 +164,10 @@ pub struct SwapInfo {
 #[derive(Drop, Serde, PartialEq, starknet::Store)]
 pub enum SwapStatus {
     #[default]
-    Pending: (),
-    Completed: (),
-    Cancelled: (),
-    Expired: (),
+    Pending,
+    Completed,
+    Cancelled,
+    Expired,
 }
 
 // Role definitions

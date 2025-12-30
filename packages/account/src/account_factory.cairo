@@ -9,7 +9,7 @@ pub mod AccountFactory {
         StoragePointerWriteAccess,
     };
     use starknet::syscalls::deploy_syscall;
-    use starknet::{ClassHash, ContractAddress};
+    use starknet::{ClassHash, ContractAddress, SyscallResultTrait};
     use crate::errors::AccountErrors;
     use crate::events::{AccountCreated, DefaultTokenAdded};
     use crate::interfaces::IAccountFactory;
@@ -33,7 +33,6 @@ pub mod AccountFactory {
         accounts: Map<felt252, ContractAddress>, // user address -> account address
         account_class_hash: ClassHash,
         liquidity_bridge: ContractAddress,
-        default_fiat_currency: felt252,
     }
 
     #[event]
@@ -53,12 +52,10 @@ pub mod AccountFactory {
         owner: ContractAddress,
         account_class_hash: ClassHash,
         liquidity_bridge: ContractAddress,
-        default_fiat_currency: felt252,
     ) {
         self.ownable.initializer(owner);
         self.account_class_hash.write(account_class_hash);
         self.liquidity_bridge.write(liquidity_bridge);
-        self.default_fiat_currency.write(default_fiat_currency);
     }
 
     #[abi(embed_v0)]
@@ -72,10 +69,11 @@ pub mod AccountFactory {
 
             // Deploy the account contract
             let mut constructor_calldata = array![public_key];
+
             let (deployed_address, _) = deploy_syscall(
                 self.account_class_hash.read(), 0, constructor_calldata.span(), false,
             )
-                .unwrap();
+                .unwrap_syscall();
 
             // Store the account address
             self.accounts.write(user_unique_id, deployed_address);
@@ -101,26 +99,19 @@ pub mod AccountFactory {
             self.account_class_hash.write(class_hash);
         }
 
+        fn get_account_class_hash(self: @ContractState) -> ClassHash {
+            self.ownable.assert_only_owner();
+            self.account_class_hash.read()
+        }
+
         fn set_liquidity_bridge(ref self: ContractState, bridge: ContractAddress) {
             self.ownable.assert_only_owner();
             self.liquidity_bridge.write(bridge);
         }
 
-        fn set_default_fiat_currency(ref self: ContractState, currency: felt252) {
+        fn get_liquidity_bridge(self: @ContractState) -> ContractAddress {
             self.ownable.assert_only_owner();
-            self.default_fiat_currency.write(currency);
-        }
-
-        fn add_default_token(
-            ref self: ContractState, symbol: felt252, token_address: ContractAddress,
-        ) {
-            self.ownable.assert_only_owner();
-            // Get all existing accounts and update their token address
-            // This is a simplified example - in a real implementation, you might want to paginate
-            // or find a more gas-efficient way to handle this
-            // ...
-
-            self.emit(DefaultTokenAdded { symbol, token_address });
+            self.liquidity_bridge.read()
         }
     }
 
