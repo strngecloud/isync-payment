@@ -36,28 +36,6 @@ pub trait ILiquidityBridge<T> {
     fn cancel_swap(ref self: T, swap_id: u64);
     fn execute_swap(ref self: T, swap_id: u64);
 
-    // Fiat-specific flows
-    fn swap_fiat_to_token(
-        ref self: T,
-        user: ContractAddress,
-        swap_order_id: felt252,
-        fiat_symbol: felt252,
-        token_symbol: felt252,
-        fiat_amount: u256,
-        token_amount: u256,
-        fee: u128,
-    ) -> bool;
-
-    fn swap_token_to_fiat(
-        ref self: T,
-        user: ContractAddress,
-        swap_order_id: felt252,
-        fiat_symbol: felt252,
-        token_symbol: felt252,
-        token_amount: u256,
-        min_fiat_amount: u256,
-    ) -> bool;
-
     // Withdrawal / escrow flows
     fn lock_user_funds(ref self: T, user: ContractAddress, token_symbol: felt252, amount: u256);
     fn confirm_withdrawal(ref self: T, user: ContractAddress, token_symbol: felt252, amount: u256, fiat_reference: felt252);

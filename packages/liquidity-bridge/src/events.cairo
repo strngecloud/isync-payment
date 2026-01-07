@@ -109,33 +109,6 @@ pub struct UserRegistered {
 }
 
 #[derive(Drop, starknet::Event)]
-pub struct FiatToTokenSwapExecuted {
-    pub name: felt252,
-    pub user: ContractAddress,
-    pub swap_order_id: felt252,
-    pub fiat_symbol: felt252,
-    pub token_symbol: felt252,
-    pub fiat_amount: u256,
-    pub token_amount: u256,
-    pub fee: u128,
-    pub exchange_rate: u256,
-    pub timestamp: u64,
-}
-
-#[derive(Drop, starknet::Event)]
-pub struct TokenToFiatSwapExecuted {
-    pub name: felt252,
-    pub user: ContractAddress,
-    pub swap_order_id: felt252,
-    pub fiat_symbol: felt252,
-    pub token_symbol: felt252,
-    pub fiat_amount: u256,
-    pub token_amount: u256,
-    pub fee: u256,
-    pub timestamp: u64,
-}
-
-#[derive(Drop, starknet::Event)]
 pub struct FundsLocked {
     pub user: ContractAddress,
     pub token_symbol: felt252,
