@@ -11,7 +11,6 @@ use snforge_std::{EventSpyAssertionsTrait, EventSpyTrait,
     spy_events, start_cheat_block_timestamp, start_cheat_caller_address, stop_cheat_block_timestamp,
     stop_cheat_caller_address,
 };
-use starknet::ContractAddress;
 
 
 #[test]
@@ -153,7 +152,7 @@ fn test_withdraw_insufficient_balance_should_fail() {
 #[test]
 fn test_approve_token() {
     let (account_address, account, _) = deploy_account();
-    let (token_address, _) = deploy_erc20();
+    let (token_address, _) = deploy_erc20("SyncToken", "SYNC");
 
     let mut _spy = spy_events();
 
@@ -207,7 +206,7 @@ fn test_direct_payment() {
     account.deposit_fiat(currency, deposit_amount);
 
     // Make payment
-    let success = account.make_payment(recipient, currency, payment_amount, false);
+    let success = account.make_payment('543tw4g45', recipient, currency, payment_amount, false);
 
     assert!(success, "Payment should succeed");
 
@@ -246,7 +245,7 @@ fn test_payment_insufficient_balance_without_bridge() {
 
     account.deposit_fiat(currency, deposit_amount);
 
-    let success = account.make_payment(recipient, currency, payment_amount, false);
+    let success = account.make_payment('543tw4g45', recipient, currency, payment_amount, false);
 
     assert!(!success, "Payment should fail");
     assert_eq!(
@@ -274,7 +273,7 @@ fn test_default_fiat_currency() {
 #[test]
 fn test_get_token_balance() {
     let (account_address, account, _) = deploy_account();
-    let (token_address, token_dispatcher) = deploy_erc20();
+    let (token_address, token_dispatcher) = deploy_erc20("SyncToken", "SYNC");
 
     start_cheat_caller_address(account_address, account_address);
 

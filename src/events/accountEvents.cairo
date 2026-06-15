@@ -17,6 +17,7 @@ pub struct FiatWithdrawal {
 
 #[derive(Drop, starknet::Event)]
 pub struct PaymentMade {
+    pub swap_order_id: felt252,
     pub from: ContractAddress,
     pub to: ContractAddress,
     pub currency: felt252,

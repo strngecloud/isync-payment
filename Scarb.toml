@@ -8,6 +8,8 @@ edition = "2024_07"
 [dependencies]
 starknet = "2.11.4"
 openzeppelin = "2.0.0"
+pragma_lib = { git = "https://github.com/astraly-labs/pragma-lib", tag = "2.8.2" }
+alexandria_math = "0.4.0"
 
 [dev-dependencies]
 snforge_std = "0.43.0"
@@ -15,6 +17,7 @@ assert_macros = "2.11.4"
 
 [[target.starknet-contract]]
 sierra = true
+allowed-libfuncs-list.name = "experimental"
 
 [scripts]
 test = "snforge test"

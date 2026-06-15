@@ -2,10 +2,18 @@
 version = 1
 
 [[package]]
+name = "alexandria_math"
+version = "0.4.0"
+source = "registry+https://scarbs.xyz/"
+checksum = "sha256:0ad256055661ed5b29ccef7bddbb44136995641cf537a6b259b94b6b6df14133"
+
+[[package]]
 name = "isyncpayment"
 version = "0.1.0"
 dependencies = [
+ "alexandria_math",
  "openzeppelin",
+ "pragma_lib",
  "snforge_std",
 ]
 
@@ -126,6 +134,11 @@ name = "openzeppelin_utils"
 version = "2.0.0"
 source = "registry+https://scarbs.xyz/"
 checksum = "sha256:bf799c794139837f397975ffdf6a7ed5032d198bbf70e87a8f44f144a9dfc505"
+
+[[package]]
+name = "pragma_lib"
+version = "1.0.0"
+source = "git+https://github.com/astraly-labs/pragma-lib?tag=2.8.2#86d7ccdc15b349b8b48d9796fc8464c947bea6e1"
 
 [[package]]
 name = "snforge_scarb_plugin"
